@@ -1,13 +1,14 @@
 use crate::model::{Layer, LayerType, Scene};
+use crate::i18n::tr;
 use egui::{Color32, RichText, Ui};
 
 pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<String>, last_clicked: &mut Option<String>) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new("WARSTWY").size(11.0).strong().color(Color32::from_gray(170)));
+        ui.label(RichText::new(tr("layers.title")).size(11.0).strong().color(Color32::from_gray(170)));
     });
     ui.horizontal_wrapped(|ui| {
         for lt in LayerType::ALL {
-            if ui.small_button(format!("{} {}", lt.icon(), lt.label())).on_hover_text("Dodaj warstwę").clicked() {
+            if ui.small_button(format!("{} {}", lt.icon(), lt.label())).on_hover_text(tr("layers.add")).clicked() {
                 let mut l = Layer::new(lt);
                 l.x = ((scene.frame.w - l.w) / 2.0).max(0.0).round();
                 l.y = ((scene.frame.h - l.h) / 2.0).max(0.0).round();
@@ -33,8 +34,8 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
             egui::Frame::none().fill(fill).inner_margin(egui::Margin::symmetric(3.0, 1.0)).rounding(3.0).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let l = &mut scene.layers[idx];
-                    if ui.selectable_label(false, if l.visible { "👁" } else { "–" }).on_hover_text("Widoczność").clicked() { l.visible = !l.visible; }
-                    if ui.selectable_label(false, if l.locked { "🔒" } else { "🔓" }).on_hover_text("Blokada").clicked() { l.locked = !l.locked; }
+                    if ui.selectable_label(false, if l.visible { "👁" } else { "–" }).on_hover_text(tr("layers.visibility")).clicked() { l.visible = !l.visible; }
+                    if ui.selectable_label(false, if l.locked { "🔒" } else { "🔓" }).on_hover_text(tr("layers.lock")).clicked() { l.locked = !l.locked; }
                     let name_w = (ui.available_width() - 4.0 * 26.0).max(40.0);
                     let label = format!("{} {}", l.layer_type.icon(), if l.name.is_empty() { l.layer_type.label() } else { &l.name });
                     let clicked = ui
@@ -58,10 +59,10 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
                             *last_clicked = Some(id.clone());
                         }
                     }
-                    if arrow_button(ui, true).on_hover_text("Wyżej").clicked() && idx + 1 < n { swap = Some((idx, idx + 1)); }
-                    if arrow_button(ui, false).on_hover_text("Niżej").clicked() && idx > 0 { swap = Some((idx, idx - 1)); }
-                    if ui.small_button("+").on_hover_text("Duplikuj (Ctrl+D)").clicked() { dup.push(id.clone()); }
-                    if ui.small_button("×").on_hover_text("Usuń").clicked() { delete.push(id.clone()); }
+                    if arrow_button(ui, true).on_hover_text(tr("layers.up")).clicked() && idx + 1 < n { swap = Some((idx, idx + 1)); }
+                    if arrow_button(ui, false).on_hover_text(tr("layers.down")).clicked() && idx > 0 { swap = Some((idx, idx - 1)); }
+                    if ui.small_button("+").on_hover_text(tr("layers.duplicate")).clicked() { dup.push(id.clone()); }
+                    if ui.small_button("×").on_hover_text(tr("layers.delete")).clicked() { delete.push(id.clone()); }
                 });
             });
         }
@@ -79,7 +80,7 @@ pub fn duplicate_layer(scene: &mut Scene, id: &str, selected: &mut Vec<String>) 
     if let Some(pos) = scene.layers.iter().position(|l| l.id == id) {
         let mut c = scene.layers[pos].clone();
         c.id = format!("l_{}", &uuid::Uuid::new_v4().simple().to_string()[..6]);
-        c.name = format!("{} kopia", c.name);
+        c.name = crate::i18n::trf("layers.copy_suffix", &[("name", &c.name)]);
         c.x += 20.0;
         c.y += 20.0;
         let nid = c.id.clone();

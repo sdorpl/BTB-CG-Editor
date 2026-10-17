@@ -34,3 +34,10 @@ pub fn combo(ui: &mut Ui, id: impl std::hash::Hash, current: &mut String, option
         for o in options { ui.selectable_value(current, o.to_string(), *o); }
     });
 }
+
+/// Jak `combo`, ale etykiety są tłumaczone (`prefix.wartość`); do pliku trafia nadal sama wartość.
+pub fn combo_t(ui: &mut Ui, id: impl std::hash::Hash, current: &mut String, options: &[&str], prefix: &str) {
+    egui::ComboBox::from_id_salt(id).selected_text(crate::i18n::opt(prefix, current)).width(120.0).show_ui(ui, |ui| {
+        for o in options { ui.selectable_value(current, o.to_string(), crate::i18n::opt(prefix, o)); }
+    });
+}

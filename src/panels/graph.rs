@@ -1,6 +1,7 @@
 //! Edytor krzywych (graph editor) wzorowany na After Effects: wykres wartości albo prędkości jednego
 //! kanału kluczy, klucze przeciągane w czasie i wartości oraz uchwyty Béziera (poziomo wpływ, pionowo
 //! prędkość; Shift blokuje oś czasu). Matematyka uchwytów jest w `btb_motion::Channel`.
+use crate::i18n::tr;
 use crate::model::*;
 use crate::panels::timeline::{channel_mut, prop_label, KeyRef, TimelineUi, PATH};
 use btb_motion::{Channel, PathChannel};
@@ -63,7 +64,7 @@ fn fit(vals: impl Iterator<Item = f32>) -> (f32, f32) {
 pub fn draw_graph(ctx: &egui::Context, el: &mut Element, tl: &mut TimelineUi, g: &mut GraphUi) {
     if !tl.graph_open { return; }
     let mut open = true;
-    egui::Window::new("Edytor krzywych").id(egui::Id::new("graph-editor")).open(&mut open).default_size([680.0, 360.0]).resizable(true).show(ctx, |ui| body(ui, el, tl, g));
+    egui::Window::new(tr("graph.title")).id(egui::Id::new("graph-editor")).open(&mut open).default_size([680.0, 360.0]).resizable(true).show(ctx, |ui| body(ui, el, tl, g));
     tl.graph_open = open;
 }
 
@@ -72,13 +73,13 @@ fn body(ui: &mut Ui, el: &mut Element, tl: &mut TimelineUi, g: &mut GraphUi) {
     g.handle_pos.clear();
     if let Some(s) = tl.sel.first() { g.focus = Some((s.layer.clone(), s.prop.clone())); }
     let Some((layer_id, prop)) = g.focus.clone() else {
-        ui.label("Zaznacz klucz na osi czasu, aby edytować jego krzywą.");
+        ui.label(tr("graph.select_key"));
         return;
     };
     let Some(scene) = el.scene.as_ref() else { return };
     // cel: warstwa albo cały element (jego klucze są w Scene.keys, bez ścieżki)
     let (layer_name, keys, path) = if layer_id == crate::motion_bridge::ELEMENT {
-        ("Element".to_string(), &scene.keys, None)
+        (tr("graph.element").to_string(), &scene.keys, None)
     } else {
         let Some(layer) = scene.layers.iter().find(|l| l.id == layer_id) else { g.focus = None; return };
         (layer.name.clone(), &layer.keys, layer.path.as_ref())
@@ -99,9 +100,9 @@ fn body(ui: &mut Ui, el: &mut Element, tl: &mut TimelineUi, g: &mut GraphUi) {
         });
         if cur != prop { g.focus = Some((layer_id.clone(), cur)); tl.sel.clear(); }
         ui.separator();
-        ui.selectable_value(&mut g.speed_view, false, "Wartość");
-        ui.selectable_value(&mut g.speed_view, true, "Prędkość");
-        ui.weak("Shift: blokuje czas uchwytu · Alt: bez przyciągania");
+        ui.selectable_value(&mut g.speed_view, false, tr("graph.value"));
+        ui.selectable_value(&mut g.speed_view, true, tr("graph.speed"));
+        ui.weak(tr("graph.hint"));
     });
 
     // zakresy osi

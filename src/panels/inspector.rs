@@ -1,4 +1,5 @@
-use super::{color_edit, combo, num, num_range};
+use super::{color_edit, combo, combo_t, num, num_range};
+use crate::i18n::{opt, tr, trf};
 use crate::anim::{STAGGER_FROM, ANIM_TYPES, DIRECTIONAL, DIRECTIONS, EASES, LOOP_TYPES, TEXT_IN, TEXT_OUT};
 use crate::model::*;
 use egui::{Color32, RichText, Ui};
@@ -11,10 +12,10 @@ fn heading(ui: &mut Ui, t: &str) { ui.add_space(4.0); ui.label(RichText::new(t).
 
 pub fn draw_inspector(ui: &mut Ui, el: &mut Element, selected: &[String], tab: &mut InspectorTab) {
     ui.horizontal(|ui| {
-        ui.selectable_value(tab, InspectorTab::Layer, "Warstwa");
-        ui.selectable_value(tab, InspectorTab::Element, "Element");
-        ui.selectable_value(tab, InspectorTab::Anim, "Animacja");
-        ui.selectable_value(tab, InspectorTab::Code, "Kod");
+        ui.selectable_value(tab, InspectorTab::Layer, tr("tab.layer"));
+        ui.selectable_value(tab, InspectorTab::Element, tr("tab.element"));
+        ui.selectable_value(tab, InspectorTab::Anim, tr("tab.anim"));
+        ui.selectable_value(tab, InspectorTab::Code, tr("tab.code"));
     });
     ui.separator();
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| match *tab {
@@ -29,11 +30,11 @@ pub fn draw_inspector(ui: &mut Ui, el: &mut Element, selected: &[String], tab: &
 
 fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
     let Some(scene) = el.scene.as_mut() else {
-        ui.label(RichText::new("Element bez sceny — użyj zakładki „Element” → „Utwórz scenę”.").color(Color32::from_gray(140)));
+        ui.label(RichText::new(tr("layer.no_scene")).color(Color32::from_gray(140)));
         return;
     };
     if selected.is_empty() {
-        ui.label(RichText::new("Zaznacz warstwę na canvasie lub liście.").color(Color32::from_gray(140)));
+        ui.label(RichText::new(tr("layer.select")).color(Color32::from_gray(140)));
         return;
     }
     if selected.len() > 1 { align_tools(ui, scene, selected); }
@@ -44,16 +45,16 @@ fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
     let Some(layer) = scene.layers.iter_mut().find(|l| l.id == id) else { return };
     if selected.len() == 1 { align_single(ui, layer, frame); }
 
-    ui.horizontal(|ui| { ui.label("Nazwa"); ui.text_edit_singleline(&mut layer.name); });
-    heading(ui, "Położenie");
+    ui.horizontal(|ui| { ui.label(tr("common.name")); ui.text_edit_singleline(&mut layer.name); });
+    heading(ui, tr("layer.position"));
     egui::Grid::new("geom").num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
         ui.label("X"); num(ui, &mut layer.x, 1.0); ui.label("Y"); num(ui, &mut layer.y, 1.0); ui.end_row();
         ui.label("W"); num_range(ui, &mut layer.w, 1.0, 1.0, 10000.0); ui.label("H"); num_range(ui, &mut layer.h, 1.0, 1.0, 10000.0); ui.end_row();
-        ui.label("Obrót"); num(ui, &mut layer.rotation, 0.5); ui.label("Skos"); num(ui, &mut layer.skew, 0.5); ui.end_row();
+        ui.label(tr("layer.rotation")); num(ui, &mut layer.rotation, 0.5); ui.label(tr("layer.skew")); num(ui, &mut layer.skew, 0.5); ui.end_row();
     });
-    ui.horizontal(|ui| { ui.label("Krycie"); ui.add(egui::Slider::new(&mut layer.opacity, 0.0..=1.0)); });
+    ui.horizontal(|ui| { ui.label(tr("layer.opacity")); ui.add(egui::Slider::new(&mut layer.opacity, 0.0..=1.0)); });
     ui.horizontal(|ui| {
-        ui.label("Grupa");
+        ui.label(tr("layer.group"));
         let mut g = layer.group.clone().unwrap_or_default();
         if ui.add(egui::TextEdit::singleline(&mut g).desired_width(90.0)).changed() { layer.group = if g.is_empty() { None } else { Some(g) }; }
     });
@@ -65,24 +66,24 @@ fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
         LayerType::Image => media_props(ui, layer, false, &others),
         LayerType::Video => media_props(ui, layer, true, &others),
         LayerType::Clock => {
-            heading(ui, "Zegar");
+            heading(ui, tr("layer.clock"));
             let mut f = layer.format.clone().unwrap_or_else(|| "HH:MM:SS".into());
-            ui.horizontal(|ui| { ui.label("Format"); combo(ui, "clk_fmt", &mut f, &["HH:MM:SS", "HH:MM"]); });
+            ui.horizontal(|ui| { ui.label(tr("layer.format")); combo(ui, "clk_fmt", &mut f, &["HH:MM:SS", "HH:MM"]); });
             layer.format = Some(f);
             let font = layer.font.get_or_insert_with(FontStyle::default);
             font_props(ui, font, "clk");
         }
         LayerType::Ticker => {
-            heading(ui, "Ticker");
+            heading(ui, tr("layer.ticker"));
             egui::Grid::new("tk").num_columns(2).show(ui, |ui| {
                 let mut sp = layer.speed.unwrap_or(100.0);
-                ui.label("Prędkość px/s"); num_range(ui, &mut sp, 1.0, 5.0, 2000.0); ui.end_row();
+                ui.label(tr("layer.ticker.speed")); num_range(ui, &mut sp, 1.0, 5.0, 2000.0); ui.end_row();
                 layer.speed = Some(sp);
                 let mut gap = layer.gap.unwrap_or(48.0);
-                ui.label("Odstęp"); num_range(ui, &mut gap, 1.0, 0.0, 500.0); ui.end_row();
+                ui.label(tr("layer.ticker.gap")); num_range(ui, &mut gap, 1.0, 0.0, 500.0); ui.end_row();
                 layer.gap = Some(gap);
                 let mut sep = layer.separator.clone().unwrap_or_else(|| "•".into());
-                ui.label("Separator"); ui.add(egui::TextEdit::singleline(&mut sep).desired_width(60.0)); ui.end_row();
+                ui.label(tr("layer.ticker.separator")); ui.add(egui::TextEdit::singleline(&mut sep).desired_width(60.0)); ui.end_row();
                 layer.separator = Some(sep);
             });
             let font = layer.font.get_or_insert_with(FontStyle::default);
@@ -95,25 +96,25 @@ fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
 
 fn align_single(ui: &mut Ui, l: &mut Layer, frame: (f32, f32)) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Wyrównaj do ramki").small().color(Color32::from_gray(150)));
-        if ui.small_button("L").on_hover_text("Do lewej").clicked() { l.x = 0.0; }
-        if ui.small_button("C").on_hover_text("Środek poziomo").clicked() { l.x = ((frame.0 - l.w) / 2.0).round(); }
-        if ui.small_button("R").on_hover_text("Do prawej").clicked() { l.x = frame.0 - l.w; }
-        if ui.small_button("T").on_hover_text("Do góry").clicked() { l.y = 0.0; }
-        if ui.small_button("M").on_hover_text("Środek pionowo").clicked() { l.y = ((frame.1 - l.h) / 2.0).round(); }
-        if ui.small_button("B").on_hover_text("Do dołu").clicked() { l.y = frame.1 - l.h; }
+        ui.label(RichText::new(tr("align.to_frame")).small().color(Color32::from_gray(150)));
+        if ui.small_button("L").on_hover_text(tr("align.left")).clicked() { l.x = 0.0; }
+        if ui.small_button("C").on_hover_text(tr("align.center_h")).clicked() { l.x = ((frame.0 - l.w) / 2.0).round(); }
+        if ui.small_button("R").on_hover_text(tr("align.right")).clicked() { l.x = frame.0 - l.w; }
+        if ui.small_button("T").on_hover_text(tr("align.top")).clicked() { l.y = 0.0; }
+        if ui.small_button("M").on_hover_text(tr("align.center_v")).clicked() { l.y = ((frame.1 - l.h) / 2.0).round(); }
+        if ui.small_button("B").on_hover_text(tr("align.bottom")).clicked() { l.y = frame.1 - l.h; }
     });
 }
 
 fn align_tools(ui: &mut Ui, scene: &mut Scene, selected: &[String]) {
-    heading(ui, &format!("{} warstw — wyrównanie", selected.len()));
+    heading(ui, &trf("align.multi", &[("n", &selected.len())]));
     let (mut minx, mut miny, mut maxx, mut maxy) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for l in scene.layers.iter().filter(|l| selected.contains(&l.id)) {
         minx = minx.min(l.x); miny = miny.min(l.y); maxx = maxx.max(l.x + l.w); maxy = maxy.max(l.y + l.h);
     }
     let mut act: Option<u8> = None;
     ui.horizontal(|ui| {
-        for (i, (g, t)) in [("L", "Lewa krawędź"), ("C", "Środek poziomo"), ("R", "Prawa krawędź"), ("T", "Góra"), ("M", "Środek pionowo"), ("B", "Dół"), ("H", "Rozmieść poziomo"), ("V", "Rozmieść pionowo")].iter().enumerate() {
+        for (i, (g, t)) in [("L", tr("align.m_left")), ("C", tr("align.m_center_h")), ("R", tr("align.m_right")), ("T", tr("align.m_top")), ("M", tr("align.m_center_v")), ("B", tr("align.m_bottom")), ("H", tr("align.distribute_h")), ("V", tr("align.distribute_v"))].iter().enumerate() {
             if ui.small_button(*g).on_hover_text(*t).clicked() { act = Some(i as u8); }
         }
     });
@@ -142,40 +143,40 @@ fn align_tools(ui: &mut Ui, scene: &mut Scene, selected: &[String]) {
 }
 
 fn shape_props(ui: &mut Ui, l: &mut Layer) {
-    heading(ui, "Wypełnienie");
+    heading(ui, tr("shape.fill"));
     let f = l.fill.get_or_insert_with(Fill::default);
     ui.horizontal(|ui| {
-        ui.selectable_value(&mut f.fill_type, FillType::Solid, "Pełny");
-        ui.selectable_value(&mut f.fill_type, FillType::Gradient, "Gradient");
-        ui.selectable_value(&mut f.fill_type, FillType::None, "Brak");
+        ui.selectable_value(&mut f.fill_type, FillType::Solid, tr("shape.fill.solid"));
+        ui.selectable_value(&mut f.fill_type, FillType::Gradient, tr("shape.fill.gradient"));
+        ui.selectable_value(&mut f.fill_type, FillType::None, tr("shape.fill.none"));
     });
-    if f.fill_type != FillType::None { ui.horizontal(|ui| { ui.label("Kolor 1"); color_edit(ui, &mut f.color); }); }
+    if f.fill_type != FillType::None { ui.horizontal(|ui| { ui.label(tr("shape.color1")); color_edit(ui, &mut f.color); }); }
     if f.fill_type == FillType::Gradient {
-        ui.horizontal(|ui| { ui.label("Kolor 2"); color_edit(ui, &mut f.color2); });
-        ui.horizontal(|ui| { ui.label("Kąt"); num_range(ui, &mut f.angle, 1.0, -360.0, 360.0); });
+        ui.horizontal(|ui| { ui.label(tr("shape.color2")); color_edit(ui, &mut f.color2); });
+        ui.horizontal(|ui| { ui.label(tr("shape.angle")); num_range(ui, &mut f.angle, 1.0, -360.0, 360.0); });
     }
-    heading(ui, "Obrys");
+    heading(ui, tr("shape.stroke"));
     let s = l.stroke.get_or_insert_with(Stroke::default);
-    ui.horizontal(|ui| { ui.label("Grubość"); num_range(ui, &mut s.width, 0.25, 0.0, 100.0); color_edit(ui, &mut s.color); });
+    ui.horizontal(|ui| { ui.label(tr("shape.stroke.width")); num_range(ui, &mut s.width, 0.25, 0.0, 100.0); color_edit(ui, &mut s.color); });
     radius_ui(ui, &mut l.radius);
-    heading(ui, "Cień");
+    heading(ui, tr("shadow.title"));
     let mut mode = match &l.shadow { None | Some(Shadow::Flag(false)) => 0, Some(Shadow::Flag(true)) => 1, _ => 2 };
     ui.horizontal(|ui| {
-        ui.selectable_value(&mut mode, 0, "Brak"); ui.selectable_value(&mut mode, 1, "Domyślny"); ui.selectable_value(&mut mode, 2, "Własny");
+        ui.selectable_value(&mut mode, 0, tr("shadow.none")); ui.selectable_value(&mut mode, 1, tr("shadow.default")); ui.selectable_value(&mut mode, 2, tr("shadow.custom"));
     });
     l.shadow = Some(match mode {
         0 => Shadow::Flag(false),
         1 => Shadow::Flag(true),
         _ => {
             let (mut x, mut y, mut b, mut c) = match &l.shadow { Some(Shadow::Custom { x, y, blur, color }) => (*x, *y, *blur, color.clone()), _ => (0.0, 10.0, 25.0, "rgba(0,0,0,0.6)".to_string()) };
-            ui.horizontal(|ui| { ui.label("x"); num(ui, &mut x, 1.0); ui.label("y"); num(ui, &mut y, 1.0); ui.label("blur"); num_range(ui, &mut b, 1.0, 0.0, 200.0); });
-            ui.horizontal(|ui| { ui.label("kolor"); color_edit(ui, &mut c); });
+            ui.horizontal(|ui| { ui.label("x"); num(ui, &mut x, 1.0); ui.label("y"); num(ui, &mut y, 1.0); ui.label(tr("shadow.blur")); num_range(ui, &mut b, 1.0, 0.0, 200.0); });
+            ui.horizontal(|ui| { ui.label(tr("shadow.color")); color_edit(ui, &mut c); });
             Shadow::Custom { x, y, blur: b, color: c }
         }
     });
-    heading(ui, "Efekt tła");
+    heading(ui, tr("shape.bg_effect"));
     let mut e = l.effect.clone().unwrap_or_else(|| "none".into());
-    combo(ui, "fx", &mut e, &["none", "shimmer", "pulse", "glow", "scanline"]);
+    combo_t(ui, "fx", &mut e, &["none", "shimmer", "pulse", "glow", "scanline"], "opt.fx");
     l.effect = Some(e);
 }
 
@@ -183,8 +184,8 @@ fn radius_ui(ui: &mut Ui, r: &mut Option<Radius>) {
     let cur = r.clone().unwrap_or(Radius::Uniform(0.0));
     let mut per_corner = matches!(cur, Radius::Corners(_));
     ui.horizontal(|ui| {
-        ui.label("Zaokrąglenie");
-        ui.checkbox(&mut per_corner, "osobno");
+        ui.label(tr("shape.radius"));
+        ui.checkbox(&mut per_corner, tr("shape.radius.per_corner"));
     });
     if per_corner {
         let mut c = cur.corners();
@@ -198,78 +199,78 @@ fn radius_ui(ui: &mut Ui, r: &mut Option<Radius>) {
 }
 
 fn text_props(ui: &mut Ui, l: &mut Layer) {
-    heading(ui, "Treść");
+    heading(ui, tr("text.content"));
     let mut field = l.field.clone().unwrap_or_default();
     ui.horizontal(|ui| {
-        ui.label("Pole");
-        if ui.add(egui::TextEdit::singleline(&mut field).desired_width(110.0).hint_text("(tekst stały)")).changed() {
+        ui.label(tr("text.field"));
+        if ui.add(egui::TextEdit::singleline(&mut field).desired_width(110.0).hint_text(tr("text.field.hint"))).changed() {
             l.field = if field.is_empty() { None } else { Some(field.clone()) };
         }
         if ui.small_button("TITLE").clicked() { l.field = Some("TITLE".into()); }
-        if ui.small_button("stały").clicked() { l.field = None; }
+        if ui.small_button(tr("text.fixed")).clicked() { l.field = None; }
     });
     if l.field.is_some() {
         let t = l.default_text.get_or_insert_with(String::new);
-        ui.label("Tekst domyślny");
+        ui.label(tr("text.default"));
         ui.text_edit_multiline(t);
     } else {
         let t = l.text.get_or_insert_with(String::new);
-        ui.label("Tekst stały");
+        ui.label(tr("text.static"));
         ui.text_edit_multiline(t);
     }
     let mut sq = l.squash.unwrap_or(false);
-    if ui.checkbox(&mut sq, "Ściskanie tekstu (squash)").changed() { l.squash = Some(sq); }
+    if ui.checkbox(&mut sq, tr("text.squash")).changed() { l.squash = Some(sq); }
     let font = l.font.get_or_insert_with(FontStyle::default);
     font_props(ui, font, "txt");
 }
 
 fn font_props(ui: &mut Ui, f: &mut FontStyle, salt: &str) {
-    heading(ui, "Czcionka");
-    ui.horizontal(|ui| { ui.label("Rodzina"); ui.add(egui::TextEdit::singleline(&mut f.family).desired_width(120.0)); });
+    heading(ui, tr("font.title"));
+    ui.horizontal(|ui| { ui.label(tr("font.family")); ui.add(egui::TextEdit::singleline(&mut f.family).desired_width(120.0)); });
     egui::Grid::new(format!("font_{salt}")).num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
-        ui.label("Rozmiar"); num_range(ui, &mut f.size, 0.5, 4.0, 500.0);
-        ui.label("Grubość"); combo(ui, format!("w_{salt}"), &mut f.weight, &["300", "400", "500", "600", "700", "800", "900"]); ui.end_row();
-        ui.label("Odstęp"); num(ui, &mut f.letter_spacing, 0.1);
-        ui.label("Interlinia"); num_range(ui, &mut f.line_height, 0.02, 0.5, 4.0); ui.end_row();
+        ui.label(tr("font.size")); num_range(ui, &mut f.size, 0.5, 4.0, 500.0);
+        ui.label(tr("font.weight")); combo(ui, format!("w_{salt}"), &mut f.weight, &["300", "400", "500", "600", "700", "800", "900"]); ui.end_row();
+        ui.label(tr("font.letter_spacing")); num(ui, &mut f.letter_spacing, 0.1);
+        ui.label(tr("font.line_height")); num_range(ui, &mut f.line_height, 0.02, 0.5, 4.0); ui.end_row();
     });
-    ui.horizontal(|ui| { ui.label("Kolor"); color_edit(ui, &mut f.color); });
+    ui.horizontal(|ui| { ui.label(tr("font.color")); color_edit(ui, &mut f.color); });
     ui.horizontal(|ui| {
-        ui.label("Wielkość liter"); combo(ui, format!("tr_{salt}"), &mut f.transform, &["none", "uppercase", "lowercase", "capitalize"]);
+        ui.label(tr("font.transform")); combo_t(ui, format!("tr_{salt}"), &mut f.transform, &["none", "uppercase", "lowercase", "capitalize"], "opt.transform");
     });
     ui.horizontal(|ui| {
-        ui.label("Poziomo");
+        ui.label(tr("font.align_h"));
         for (v, g) in [("left", "⬅"), ("center", "↔"), ("right", "➡")] { ui.selectable_value(&mut f.align, v.to_string(), g); }
-        ui.label("Pionowo");
+        ui.label(tr("font.align_v"));
         for (v, g) in [("top", "⬆"), ("middle", "↕"), ("bottom", "⬇")] { ui.selectable_value(&mut f.valign, v.to_string(), g); }
     });
-    ui.checkbox(&mut f.italic, "Kursywa");
-    ui.horizontal(|ui| { ui.label("Cień"); ui.add(egui::TextEdit::singleline(&mut f.shadow).desired_width(150.0).font(egui::TextStyle::Monospace)); });
+    ui.checkbox(&mut f.italic, tr("font.italic"));
+    ui.horizontal(|ui| { ui.label(tr("font.shadow")); ui.add(egui::TextEdit::singleline(&mut f.shadow).desired_width(150.0).font(egui::TextStyle::Monospace)); });
 }
 
 fn media_props(ui: &mut Ui, l: &mut Layer, video: bool, shapes: &[(String, String)]) {
-    heading(ui, if video { "Wideo" } else { "Obraz" });
+    heading(ui, if video { tr("media.video") } else { tr("media.image") });
     let src = l.src.get_or_insert_with(String::new);
-    ui.horizontal(|ui| { ui.label("Źródło"); ui.add(egui::TextEdit::singleline(src).desired_width(150.0)); });
+    ui.horizontal(|ui| { ui.label(tr("media.source")); ui.add(egui::TextEdit::singleline(src).desired_width(150.0)); });
     if !video {
         let b = l.bind.get_or_insert_with(String::new);
-        ui.horizontal(|ui| { ui.label("Pole (bind)"); ui.add(egui::TextEdit::singleline(b).desired_width(110.0).hint_text("np. LOGO_URL")); });
+        ui.horizontal(|ui| { ui.label(tr("media.bind")); ui.add(egui::TextEdit::singleline(b).desired_width(110.0).hint_text(tr("media.bind.hint"))); });
     }
     let mut fit = l.fit.clone().unwrap_or_else(|| "contain".into());
-    ui.horizontal(|ui| { ui.label("Dopasowanie"); combo(ui, "fit", &mut fit, &["contain", "cover", "fill", "none", "scale-down"]); });
+    ui.horizontal(|ui| { ui.label(tr("media.fit")); combo_t(ui, "fit", &mut fit, &["contain", "cover", "fill", "none", "scale-down"], "opt.fit"); });
     l.fit = Some(fit);
     if video {
         let mut lp = l.video_loop.unwrap_or(true);
         let mut mu = l.muted.unwrap_or(true);
-        ui.horizontal(|ui| { ui.checkbox(&mut lp, "pętla"); ui.checkbox(&mut mu, "wyciszone"); });
+        ui.horizontal(|ui| { ui.checkbox(&mut lp, tr("media.loop")); ui.checkbox(&mut mu, tr("media.muted")); });
         l.video_loop = Some(lp); l.muted = Some(mu);
     }
     radius_ui(ui, &mut l.radius);
     let cur = l.mask_layer.clone().unwrap_or_default();
-    let cur_name = shapes.iter().find(|(id, _)| *id == cur).map(|(_, n)| n.clone()).unwrap_or_else(|| "(brak)".into());
+    let cur_name = shapes.iter().find(|(id, _)| *id == cur).map(|(_, n)| n.clone()).unwrap_or_else(|| tr("common.none").into());
     ui.horizontal(|ui| {
-        ui.label("Maska");
+        ui.label(tr("media.mask"));
         egui::ComboBox::from_id_salt("mask").selected_text(cur_name).show_ui(ui, |ui| {
-            if ui.selectable_label(cur.is_empty(), "(brak)").clicked() { l.mask_layer = None; }
+            if ui.selectable_label(cur.is_empty(), tr("common.none")).clicked() { l.mask_layer = None; }
             for (id, n) in shapes { if ui.selectable_label(*id == cur, n).clicked() { l.mask_layer = Some(id.clone()); } }
         });
     });
@@ -278,21 +279,21 @@ fn media_props(ui: &mut Ui, l: &mut Layer, video: bool, shapes: &[(String, Strin
 // ── Motion ──────────────────────────────────────────────────────────────────
 
 pub fn motion_props(ui: &mut Ui, m: &mut Motion, peers: &[(String, String)]) {
-    heading(ui, "Ruch warstwy");
-    optional_motion(ui, "Wejście (IN)", "m_in", &mut m.motion_in, peers);
-    optional_motion(ui, "Wyjście (OUT)", "m_out", &mut m.out, peers);
-    optional_text(ui, "Efekt tekstu IN", "t_in", &mut m.text, TEXT_IN, 0.2, peers);
-    optional_text(ui, "Efekt tekstu OUT", "t_out", &mut m.text_out, TEXT_OUT, 0.0, peers);
+    heading(ui, tr("motion.title"));
+    optional_motion(ui, tr("motion.in"), "m_in", &mut m.motion_in, peers);
+    optional_motion(ui, tr("motion.out"), "m_out", &mut m.out, peers);
+    optional_text(ui, tr("motion.text_in"), "t_in", &mut m.text, TEXT_IN, 0.2, peers);
+    optional_text(ui, tr("motion.text_out"), "t_out", &mut m.text_out, TEXT_OUT, 0.0, peers);
 }
 
 /// „Po warstwie”: ruch startuje po zakończeniu tej samej fazy wskazanej warstwy (opóźnienie liczy się od jej końca).
 fn after_row(ui: &mut Ui, salt: &str, extra: &mut Extra, peers: &[(String, String)]) {
     let cur = crate::links::after(extra).map(String::from);
-    let name = |id: &str| peers.iter().find(|p| p.0 == id).map(|p| p.1.clone()).unwrap_or_else(|| "(brak warstwy)".into());
+    let name = |id: &str| peers.iter().find(|p| p.0 == id).map(|p| p.1.clone()).unwrap_or_else(|| tr("motion.after.missing").into());
     let mut sel = cur.clone();
-    ui.label("Po warstwie");
-    egui::ComboBox::from_id_salt(format!("af_{salt}")).selected_text(sel.as_deref().map(name).unwrap_or_else(|| "(równolegle)".into())).width(120.0).show_ui(ui, |ui| {
-        ui.selectable_value(&mut sel, None, "(równolegle)");
+    ui.label(tr("motion.after"));
+    egui::ComboBox::from_id_salt(format!("af_{salt}")).selected_text(sel.as_deref().map(name).unwrap_or_else(|| tr("motion.after.parallel").into())).width(120.0).show_ui(ui, |ui| {
+        ui.selectable_value(&mut sel, None, tr("motion.after.parallel"));
         for (id, n) in peers { ui.selectable_value(&mut sel, Some(id.clone()), n); }
     });
     ui.end_row();
@@ -307,27 +308,28 @@ fn optional_motion(ui: &mut Ui, label: &str, salt: &str, m: &mut Option<MotionSp
 
 fn motion_spec(ui: &mut Ui, salt: &str, s: &mut MotionSpec, peers: &[(String, String)]) {
     egui::Grid::new(format!("ms_{salt}")).num_columns(2).spacing([6.0, 3.0]).show(ui, |ui| {
-        ui.label("Typ"); combo(ui, format!("ty_{salt}"), &mut s.anim_type, ANIM_TYPES); ui.end_row();
+        ui.label(tr("common.type")); combo_t(ui, format!("ty_{salt}"), &mut s.anim_type, ANIM_TYPES, "opt.anim"); ui.end_row();
         crate::anim::sync_fallback(&mut s.extra, &s.anim_type);
         if DIRECTIONAL.contains(&s.anim_type.as_str()) {
             let mut d = s.direction.clone().unwrap_or_else(|| "left".into());
-            ui.label("Kierunek"); combo(ui, format!("di_{salt}"), &mut d, DIRECTIONS); ui.end_row();
+            ui.label(tr("motion.direction")); combo_t(ui, format!("di_{salt}"), &mut d, DIRECTIONS, "opt.dir"); ui.end_row();
             s.direction = Some(d);
         }
-        ui.label("Czas"); num_range(ui, &mut s.duration, 0.02, 0.05, 10.0); ui.end_row();
-        ui.label("Opóźnienie"); num_range(ui, &mut s.delay, 0.02, 0.0, 10.0); ui.end_row();
+        ui.label(tr("motion.duration")); num_range(ui, &mut s.duration, 0.02, 0.05, 10.0); ui.end_row();
+        ui.label(tr("motion.delay")); num_range(ui, &mut s.delay, 0.02, 0.0, 10.0); ui.end_row();
         if !peers.is_empty() { after_row(ui, salt, &mut s.extra, peers); }
-        ui.label("Krzywa"); combo(ui, format!("ea_{salt}"), &mut s.ease, EASES); ui.end_row();
+        ui.label(tr("motion.ease")); combo(ui, format!("ea_{salt}"), &mut s.ease, EASES); ui.end_row();
     });
 }
 
 fn optional_text(ui: &mut Ui, label: &str, salt: &str, t: &mut Option<TextEffect>, options: &[&str], default_delay: f32, peers: &[(String, String)]) {
+    let prefix = if std::ptr::eq(options, TEXT_OUT) { "opt.text_out" } else { "opt.text_in" };
     let mut cur = t.as_ref().map(|x| x.effect_type.clone()).unwrap_or_else(|| "(dziedzicz)".into());
     ui.horizontal(|ui| {
         ui.label(label);
-        egui::ComboBox::from_id_salt(salt).selected_text(cur.clone()).width(120.0).show_ui(ui, |ui| {
-            ui.selectable_value(&mut cur, "(dziedzicz)".to_string(), "(dziedzicz z elementu)");
-            for o in options { ui.selectable_value(&mut cur, o.to_string(), *o); }
+        egui::ComboBox::from_id_salt(salt).selected_text(if cur == "(dziedzicz)" { tr("text.inherit_short").to_string() } else { opt(prefix, &cur) }).width(120.0).show_ui(ui, |ui| {
+            ui.selectable_value(&mut cur, "(dziedzicz)".to_string(), tr("text.inherit"));
+            for o in options { ui.selectable_value(&mut cur, o.to_string(), opt(prefix, o)); }
         });
     });
     if cur == "(dziedzicz)" { *t = None; return; }
@@ -336,15 +338,15 @@ fn optional_text(ui: &mut Ui, label: &str, salt: &str, t: &mut Option<TextEffect
     crate::anim::sync_fallback(&mut e.extra, &e.effect_type);
     if e.effect_type != "none" {
         egui::Grid::new(format!("te_{salt}")).num_columns(4).spacing([6.0, 3.0]).show(ui, |ui| {
-            ui.label("Czas"); num_range(ui, &mut e.duration, 0.02, 0.05, 10.0);
-            ui.label("Opóźn."); num_range(ui, &mut e.delay, 0.02, 0.0, 10.0); ui.end_row();
+            ui.label(tr("motion.duration")); num_range(ui, &mut e.duration, 0.02, 0.05, 10.0);
+            ui.label(tr("motion.delay_short")); num_range(ui, &mut e.delay, 0.02, 0.0, 10.0); ui.end_row();
             if !peers.is_empty() { after_row(ui, salt, &mut e.extra, peers); }
             let mut st = e.stagger.unwrap_or(0.0);
-            ui.label("Stagger"); if num_range(ui, &mut st, 0.005, 0.0, 1.0).changed() { e.stagger = if st > 0.0 { Some(st) } else { None }; }
+            ui.label(tr("motion.stagger")); if num_range(ui, &mut st, 0.005, 0.0, 1.0).changed() { e.stagger = if st > 0.0 { Some(st) } else { None }; }
             ui.end_row();
             if crate::anim::split_of(&e.effect_type) != crate::anim::Split::Whole {
                 let mut from = e.stagger_from().to_string();
-                ui.label("Stagger od"); combo(ui, format!("sf_{salt}"), &mut from, STAGGER_FROM); ui.end_row();
+                ui.label(tr("motion.stagger_from")); combo_t(ui, format!("sf_{salt}"), &mut from, STAGGER_FROM, "opt.stagger"); ui.end_row();
                 if from == "start" { e.extra.remove("staggerFrom"); } else { e.extra.insert("staggerFrom".into(), Value::from(from)); }
             }
         });
@@ -354,44 +356,44 @@ fn optional_text(ui: &mut Ui, label: &str, salt: &str, t: &mut Option<TextEffect
 // ── Element tab ─────────────────────────────────────────────────────────────
 
 fn element_tab(ui: &mut Ui, el: &mut Element) {
-    heading(ui, "Element");
-    ui.horizontal(|ui| { ui.label("Nazwa"); ui.text_edit_singleline(&mut el.name); });
+    heading(ui, tr("tab.element"));
+    ui.horizontal(|ui| { ui.label(tr("common.name")); ui.text_edit_singleline(&mut el.name); });
     ui.horizontal(|ui| { ui.label("ID"); ui.add(egui::TextEdit::singleline(&mut el.id).desired_width(150.0).font(egui::TextStyle::Monospace)); });
     ui.horizontal(|ui| {
-        ui.label("Typ");
+        ui.label(tr("common.type"));
         egui::ComboBox::from_id_salt("etype").selected_text(Element::elem_type_label(&el.elem_type)).show_ui(ui, |ui| {
             for t in Element::ELEM_TYPES { ui.selectable_value(&mut el.elem_type, t.to_string(), Element::elem_type_label(t)); }
         });
     });
     if el.elem_type == "BADGE" {
-        ui.label(RichText::new("BADGE: panel operatora pokaże tylko pierwsze pole jako zwykły tekst.").small().color(Color32::from_gray(140)));
+        ui.label(RichText::new(tr("element.badge_note")).small().color(Color32::from_gray(140)));
     }
 
     if let Some(scene) = el.scene.as_mut() {
-        heading(ui, "Ramka sceny");
+        heading(ui, tr("element.frame"));
         ui.horizontal(|ui| {
             ui.label("W"); num_range(ui, &mut scene.frame.w, 1.0, 1.0, 1920.0);
             ui.label("H"); num_range(ui, &mut scene.frame.h, 1.0, 1.0, 1080.0);
         });
     }
 
-    heading(ui, "Pozycja na wizji (layout)");
+    heading(ui, tr("element.layout"));
     let lo = &mut el.layout;
     ui.horizontal(|ui| {
-        ui.label("Kotwica");
-        combo(ui, "side", &mut lo.side, &["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"]);
+        ui.label(tr("element.anchor"));
+        combo_t(ui, "side", &mut lo.side, &["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"], "opt.side");
     });
     if lo.side == "custom" {
         let (mut x, mut y) = (lo.x.unwrap_or(0.0), lo.y.unwrap_or(0.0));
         ui.horizontal(|ui| { ui.label("X"); num(ui, &mut x, 1.0); ui.label("Y"); num(ui, &mut y, 1.0); });
         lo.x = Some(x); lo.y = Some(y);
     } else {
-        ui.horizontal(|ui| { ui.label("Margines X"); num(ui, &mut lo.margin_x, 1.0); ui.label("Y"); num(ui, &mut lo.margin_y, 1.0); });
+        ui.horizontal(|ui| { ui.label(tr("element.margin_x")); num(ui, &mut lo.margin_x, 1.0); ui.label("Y"); num(ui, &mut lo.margin_y, 1.0); });
     }
-    ui.horizontal(|ui| { ui.label("Skala"); num_range(ui, &mut lo.scale, 0.01, 0.05, 10.0); ui.label("Warstwa Z"); let mut z = lo.layer.unwrap_or(1.0); num_range(ui, &mut z, 0.1, 0.0, 100.0); lo.layer = Some(z); });
+    ui.horizontal(|ui| { ui.label(tr("element.scale")); num_range(ui, &mut lo.scale, 0.01, 0.05, 10.0); ui.label(tr("element.layer_z")); let mut z = lo.layer.unwrap_or(1.0); num_range(ui, &mut z, 0.1, 0.0, 100.0); lo.layer = Some(z); });
 
-    heading(ui, "Wartości (title / pola)");
-    ui.label(RichText::new("Wartości widoczne w podglądzie i w panelu operatora BTB-CG.").small().color(Color32::from_gray(140)));
+    heading(ui, tr("element.values"));
+    ui.label(RichText::new(tr("element.values.hint")).small().color(Color32::from_gray(140)));
     ui.horizontal(|ui| { ui.label("TITLE"); ui.add(egui::TextEdit::singleline(&mut el.title).desired_width(170.0)); });
     let keys: Vec<String> = el.fields.keys().cloned().collect();
     let mut remove: Option<String> = None;
@@ -407,7 +409,7 @@ fn element_tab(ui: &mut Ui, el: &mut Element) {
     if let Some(k) = remove { el.fields.remove(&k); }
 
     if !el.ocg_inputs.is_empty() {
-        heading(ui, "Pola wejściowe (ocgInputs)");
+        heading(ui, tr("element.inputs"));
         for i in &el.ocg_inputs {
             ui.label(RichText::new(format!("{} — {}", i.get("id").and_then(|v| v.as_str()).unwrap_or("?"), i.get("label").and_then(|v| v.as_str()).unwrap_or(""))).small().monospace());
         }
@@ -415,18 +417,18 @@ fn element_tab(ui: &mut Ui, el: &mut Element) {
 
     ui.separator();
     if el.scene.is_none() {
-        ui.colored_label(Color32::from_rgb(251, 191, 36), "Ten element ma kod napisany ręcznie (bez sceny).");
-        ui.label(RichText::new("Edytor graficzny działa na scenie. „Utwórz scenę” zastąpi kod wygenerowanym, a oryginał zachowa w polu codeBackup.").small());
-        if ui.button("Utwórz scenę (szkic dla typu)").clicked() {
+        ui.colored_label(Color32::from_rgb(251, 191, 36), tr("element.manual_code"));
+        ui.label(RichText::new(tr("element.manual_code.hint")).small());
+        if ui.button(tr("canvas.manual.create_scene")).clicked() {
             let backup = serde_json::json!({ "html_template": el.html_template, "css_template": el.css_template, "js_template": el.js_template });
             el.extra.insert("codeBackup".into(), backup);
             let scene = crate::presets::scene_for(&el.elem_type);
             crate::compile::apply_to_element(el, scene);
         }
     } else if el.scene.as_ref().map_or(false, |s| s.detached) {
-        ui.colored_label(Color32::from_rgb(251, 191, 36), "Scena odłączona od kodu (kod edytowany ręcznie).");
-        if ui.button("Przywróć kod ze sceny").clicked() { crate::compile::recompile(el); }
-    } else if el.extra.contains_key("codeBackup") && ui.button("Przywróć kod ręczny z codeBackup").clicked() {
+        ui.colored_label(Color32::from_rgb(251, 191, 36), tr("element.detached"));
+        if ui.button(tr("element.restore_from_scene")).clicked() { crate::compile::recompile(el); }
+    } else if el.extra.contains_key("codeBackup") && ui.button(tr("element.restore_backup")).clicked() {
         if let Some(Value::Object(b)) = el.extra.get("codeBackup").cloned() {
             el.html_template = b.get("html_template").and_then(|v| v.as_str()).unwrap_or("").into();
             el.css_template = b.get("css_template").and_then(|v| v.as_str()).unwrap_or("").into();
@@ -440,40 +442,40 @@ fn element_tab(ui: &mut Ui, el: &mut Element) {
 
 fn anim_spec(ui: &mut Ui, salt: &str, s: &mut AnimSpec) {
     egui::Grid::new(format!("as_{salt}")).num_columns(2).spacing([6.0, 3.0]).show(ui, |ui| {
-        ui.label("Typ"); combo(ui, format!("ty_{salt}"), &mut s.anim_type, ANIM_TYPES); ui.end_row();
+        ui.label(tr("common.type")); combo_t(ui, format!("ty_{salt}"), &mut s.anim_type, ANIM_TYPES, "opt.anim"); ui.end_row();
         crate::anim::sync_fallback(&mut s.extra, &s.anim_type);
         if DIRECTIONAL.contains(&s.anim_type.as_str()) {
             let mut d = s.direction.clone().unwrap_or_else(|| "left".into());
-            ui.label("Kierunek"); combo(ui, format!("di_{salt}"), &mut d, DIRECTIONS); ui.end_row();
+            ui.label(tr("motion.direction")); combo_t(ui, format!("di_{salt}"), &mut d, DIRECTIONS, "opt.dir"); ui.end_row();
             s.direction = Some(d);
         }
-        ui.label("Czas"); num_range(ui, &mut s.duration, 0.02, 0.05, 10.0); ui.end_row();
-        ui.label("Opóźnienie"); num_range(ui, &mut s.delay, 0.02, 0.0, 10.0); ui.end_row();
-        ui.label("Krzywa"); combo(ui, format!("ea_{salt}"), &mut s.ease, EASES); ui.end_row();
+        ui.label(tr("motion.duration")); num_range(ui, &mut s.duration, 0.02, 0.05, 10.0); ui.end_row();
+        ui.label(tr("motion.delay")); num_range(ui, &mut s.delay, 0.02, 0.0, 10.0); ui.end_row();
+        ui.label(tr("motion.ease")); combo(ui, format!("ea_{salt}"), &mut s.ease, EASES); ui.end_row();
     });
 }
 
 fn anim_tab(ui: &mut Ui, el: &mut Element) {
-    ui.label(RichText::new("Animacja całego elementu (obowiązuje niezależnie od ruchu warstw).").small().color(Color32::from_gray(140)));
-    heading(ui, "Wejście (IN)");
+    ui.label(RichText::new(tr("anim.intro")).small().color(Color32::from_gray(140)));
+    heading(ui, tr("motion.in"));
     anim_spec(ui, "ein", &mut el.animation.anim_in);
-    heading(ui, "Wyjście (OUT)");
+    heading(ui, tr("motion.out"));
     anim_spec(ui, "eout", &mut el.animation.out);
-    heading(ui, "Tekst");
-    optional_text(ui, "Wejście tekstu", "e_t_in", &mut el.animation.text, TEXT_IN, 0.2, &[]);
-    optional_text(ui, "Wyjście tekstu", "e_t_out", &mut el.animation.text_out, TEXT_OUT, 0.0, &[]);
-    for (key, label) in [("textSync", "Tekst IN po wejściu belki"), ("textOutSync", "Tekst OUT przed wyjściem belki")] {
+    heading(ui, tr("anim.text"));
+    optional_text(ui, tr("anim.text_in"), "e_t_in", &mut el.animation.text, TEXT_IN, 0.2, &[]);
+    optional_text(ui, tr("anim.text_out"), "e_t_out", &mut el.animation.text_out, TEXT_OUT, 0.0, &[]);
+    for (key, label) in [("textSync", tr("anim.text_sync")), ("textOutSync", tr("anim.text_out_sync"))] {
         let mut v = el.animation.extra.get(key).and_then(|v| v.as_bool()).unwrap_or(false);
         if ui.checkbox(&mut v, label).changed() { el.animation.extra.insert(key.into(), Value::Bool(v)); }
     }
-    heading(ui, "Pętla uwagi");
+    heading(ui, tr("anim.loop"));
     let mut lp = el.animation.loop_spec.clone().unwrap_or_default();
     let mut t = if lp.loop_type.is_empty() { "none".to_string() } else { lp.loop_type.clone() };
-    ui.horizontal(|ui| { ui.label("Typ"); combo(ui, "loop", &mut t, LOOP_TYPES); });
+    ui.horizontal(|ui| { ui.label(tr("common.type")); combo_t(ui, "loop", &mut t, LOOP_TYPES, "opt.loop"); });
     lp.loop_type = t.clone();
     if t != "none" {
         let mut d = lp.duration.unwrap_or(0.0);
-        ui.horizontal(|ui| { ui.label("Czas cyklu (0 = domyślny)"); num_range(ui, &mut d, 0.05, 0.0, 20.0); });
+        ui.horizontal(|ui| { ui.label(tr("anim.loop.duration")); num_range(ui, &mut d, 0.05, 0.0, 20.0); });
         lp.duration = if d > 0.0 { Some(d) } else { None };
         el.animation.loop_spec = Some(lp);
     } else {
@@ -486,8 +488,8 @@ fn anim_tab(ui: &mut Ui, el: &mut Element) {
 fn layers_motion(ui: &mut Ui, el: &mut Element) {
     let Some(scene) = el.scene.as_mut() else { return };
     ui.separator();
-    heading(ui, "Warstwy");
-    ui.label(RichText::new("Ruch każdej warstwy osobno. „Po warstwie” startuje ruch po zakończeniu tej samej fazy wskazanej warstwy (np. OUT tła po OUT tekstu).").small().color(Color32::from_gray(140)));
+    heading(ui, tr("anim.layers"));
+    ui.label(RichText::new(tr("anim.layers.hint")).small().color(Color32::from_gray(140)));
     let all: Vec<(String, String)> = scene.layers.iter().map(|l| (l.id.clone(), l.name.clone())).collect();
     let mut copy: Option<(String, String)> = None;
     for l in scene.layers.iter_mut().rev() {
@@ -499,9 +501,9 @@ fn layers_motion(ui: &mut Ui, el: &mut Element) {
             ui.push_id(&l.id, |ui| {
                 motion_props(ui, &mut l.motion, &peers);
                 ui.horizontal(|ui| {
-                    ui.label("Duplikuj ruch do");
+                    ui.label(tr("anim.copy_motion"));
                     let mut to = String::new();
-                    egui::ComboBox::from_id_salt("dup").selected_text("wybierz…").width(120.0).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt("dup").selected_text(tr("anim.choose")).width(120.0).show_ui(ui, |ui| {
                         for (id, n) in &peers { ui.selectable_value(&mut to, id.clone(), n); }
                     });
                     if !to.is_empty() { copy = Some((l.id.clone(), to)); }
@@ -524,7 +526,7 @@ fn layers_motion(ui: &mut Ui, el: &mut Element) {
 
 fn code_tab(ui: &mut Ui, el: &mut Element) {
     let editable = el.scene.as_ref().map_or(true, |s| s.detached);
-    ui.label(RichText::new(if editable { "Kod elementu (edytowalny)" } else { "Kod wygenerowany ze sceny (tylko odczyt)" }).small().color(Color32::from_gray(150)));
+    ui.label(RichText::new(if editable { tr("code.editable") } else { tr("code.readonly") }).small().color(Color32::from_gray(150)));
     for (title, text) in [("HTML", &mut el.html_template), ("CSS", &mut el.css_template), ("JS", &mut el.js_template)] {
         ui.collapsing(title, |ui| {
             ui.add_enabled(editable, egui::TextEdit::multiline(text).code_editor().desired_width(f32::INFINITY).desired_rows(10));

@@ -1,4 +1,5 @@
 //! Starter scenes for each BTB-CG element type.
+use crate::i18n::tr;
 use crate::model::*;
 
 fn bg_shape(name: &str, x: f32, y: f32, w: f32, h: f32, fill: Fill) -> Layer {
@@ -42,12 +43,12 @@ fn scene(w: f32, h: f32, layers: Vec<Layer>) -> Scene {
 }
 
 fn lower_third() -> Scene {
-    let mut accent = bg_shape("Akcent", 0.0, 0.0, 14.0, 80.0, solid("#ef4444"));
+    let mut accent = bg_shape(tr("preset.accent"), 0.0, 0.0, 14.0, 80.0, solid("#ef4444"));
     accent.motion.motion_in = Some(MotionSpec::new("wipe", Some("top"), 0.4, 0.0, "power2.out"));
-    let mut bg = bg_shape("Tło", 14.0, 0.0, 860.0, 80.0, gradient("#0b1220", "#1e293b", 90.0));
+    let mut bg = bg_shape(tr("preset.bg"), 14.0, 0.0, 860.0, 80.0, gradient("#0b1220", "#1e293b", 90.0));
     bg.motion.motion_in = Some(MotionSpec::new("wipe", Some("left"), 0.5, 0.1, "power2.out"));
     bg.shadow = Some(Shadow::Flag(true));
-    let mut title = text("Tytuł", Some("TITLE"), "JAN KOWALSKI", 40.0, 0.0, 820.0, 80.0, 44.0, "700");
+    let mut title = text(tr("preset.title"), Some("TITLE"), tr("preset.sample_name"), 40.0, 0.0, 820.0, 80.0, 44.0, "700");
     title.font.as_mut().unwrap().transform = "uppercase".into();
     title.squash = Some(true);
     title.motion.text = Some(TextEffect::new("reveal", 0.5, 0.35));
@@ -55,10 +56,10 @@ fn lower_third() -> Scene {
 }
 
 fn badge() -> Scene {
-    let mut bg = bg_shape("Tło", 0.0, 0.0, 260.0, 56.0, solid("#dc2626"));
+    let mut bg = bg_shape(tr("preset.bg"), 0.0, 0.0, 260.0, 56.0, solid("#dc2626"));
     bg.radius = Some(Radius::Uniform(28.0));
     bg.motion.motion_in = Some(MotionSpec::new("pop", None, 0.45, 0.0, "spring"));
-    let mut t = text("Tekst", Some("TITLE"), "NA ŻYWO", 0.0, 0.0, 260.0, 56.0, 26.0, "800");
+    let mut t = text(tr("preset.text"), Some("TITLE"), tr("preset.sample_live"), 0.0, 0.0, 260.0, 56.0, 26.0, "800");
     {
         let f = t.font.as_mut().unwrap();
         f.align = "center".into();
@@ -70,12 +71,12 @@ fn badge() -> Scene {
 }
 
 fn ticker() -> Scene {
-    let mut bar = bg_shape("Pasek", 0.0, 0.0, 1920.0, 60.0, solid("#0f172a"));
+    let mut bar = bg_shape(tr("preset.bar"), 0.0, 0.0, 1920.0, 60.0, solid("#0f172a"));
     bar.motion.motion_in = Some(MotionSpec::new("wipe", Some("left"), 0.5, 0.0, "power2.out"));
-    let mut wiper = bg_shape("Wiper", 0.0, 0.0, 240.0, 60.0, solid("#b91c1c"));
+    let mut wiper = bg_shape(tr("preset.wiper"), 0.0, 0.0, 240.0, 60.0, solid("#b91c1c"));
     wiper.skew = -10.0;
     wiper.motion.motion_in = Some(MotionSpec::new("slide", Some("left"), 0.5, 0.15, "power2.out"));
-    let mut label = text("Etykieta", Some("INTRO_TEXT"), "WIADOMOŚCI", 0.0, 0.0, 230.0, 60.0, 24.0, "800");
+    let mut label = text(tr("preset.label"), Some("INTRO_TEXT"), tr("preset.sample_news"), 0.0, 0.0, 230.0, 60.0, 24.0, "800");
     {
         let f = label.font.as_mut().unwrap();
         f.align = "center".into();
@@ -87,7 +88,7 @@ fn ticker() -> Scene {
 }
 
 fn clock() -> Scene {
-    let mut bg = bg_shape("Tło", 0.0, 0.0, 152.0, 40.0, solid("#111827"));
+    let mut bg = bg_shape(tr("preset.bg"), 0.0, 0.0, 152.0, 40.0, solid("#111827"));
     bg.radius = Some(Radius::Uniform(6.0));
     bg.stroke = Some(Stroke { color: "#334155".into(), width: 1.0, extra: Extra::new() });
     bg.motion.motion_in = Some(MotionSpec::new("fade", None, 0.4, 0.0, "power2.out"));
@@ -105,7 +106,7 @@ fn image() -> Scene {
 }
 
 fn graphic() -> Scene {
-    let mut bg = bg_shape("Tło", 0.0, 0.0, 800.0, 480.0, gradient("#1e293b", "#0f172a", 135.0));
+    let mut bg = bg_shape(tr("preset.bg"), 0.0, 0.0, 800.0, 480.0, gradient("#1e293b", "#0f172a", 135.0));
     bg.radius = Some(Radius::Uniform(16.0));
     bg.shadow = Some(Shadow::Flag(true));
     bg.motion.motion_in = Some(MotionSpec::new("zoom", None, 0.5, 0.0, "power2.out"));
@@ -113,8 +114,8 @@ fn graphic() -> Scene {
     img.x = 30.0; img.y = 30.0; img.w = 300.0; img.h = 420.0;
     img.radius = Some(Radius::Uniform(10.0));
     img.fit = Some("cover".into());
-    let t = text("Nagłówek", Some("TITLE"), "NAGŁÓWEK", 360.0, 40.0, 410.0, 90.0, 40.0, "800");
-    let mut body = text("Opis", Some("BODY"), "Treść grafiki", 360.0, 140.0, 410.0, 120.0, 24.0, "400");
+    let t = text(tr("preset.heading"), Some("TITLE"), tr("preset.sample_heading"), 360.0, 40.0, 410.0, 90.0, 40.0, "800");
+    let mut body = text(tr("preset.body"), Some("BODY"), tr("preset.sample_body"), 360.0, 140.0, 410.0, 120.0, 24.0, "400");
     body.font.as_mut().unwrap().color = "#cbd5e1".into();
     body.font.as_mut().unwrap().valign = "top".into();
     scene(800.0, 480.0, vec![bg, img, t, body])

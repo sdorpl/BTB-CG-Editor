@@ -49,6 +49,7 @@ fn table(l: Lang) -> &'static HashMap<String, String> {
 /// Tekst w podanym języku, bez zapasowego (do testów i walidacji plików).
 pub fn tr_in(l: Lang, key: &str) -> Option<&'static str> { table(l).get(key).map(String::as_str) }
 
+#[cfg(test)]
 pub fn keys(l: Lang) -> impl Iterator<Item = &'static str> { table(l).keys().map(String::as_str) }
 
 /// Tekst w bieżącym języku; brak klucza → polski → sam klucz.
@@ -90,7 +91,8 @@ mod tests {
         let (mut keys, mut prefixes) = (BTreeSet::new(), BTreeSet::new());
         for f in files.iter().filter(|f| !f.ends_with("i18n.rs")) {
             let src = std::fs::read_to_string(f).unwrap();
-            for (name, set) in [("tr", &mut keys), ("trf", &mut keys), ("opt", &mut prefixes)] {
+            for name in ["tr", "trf", "opt"] {
+                let set = if name == "opt" { &mut prefixes } else { &mut keys };
                 let pat = format!("{name}(\"");
                 for (i, _) in src.match_indices(&pat) {
                     if src[..i].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '.') { continue; }
@@ -145,6 +147,11 @@ mod tests {
                 let missing: Vec<_> = list.iter().filter(|v| tr_in(l, &format!("{prefix}.{v}")).is_none()).collect();
                 assert!(missing.is_empty(), "{} {prefix}: brak {missing:?}", l.code());
             }
+            let fixed: [(&str, &[&str]); 4] = [
+                ("opt.transform", &["none", "uppercase", "lowercase", "capitalize"]), ("opt.fit", &["contain", "cover", "fill", "none", "scale-down"]),
+                ("opt.side", &["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"]), ("opt.fx", &["none", "shimmer", "pulse", "glow", "scanline"]),
+            ];
+            for (prefix, list) in fixed { for v in list { assert!(tr_in(l, &format!("{prefix}.{v}")).is_some(), "{} {prefix}.{v}", l.code()); } }
             for t in crate::model::Element::ELEM_TYPES { assert!(tr_in(l, &format!("elemtype.{t}")).is_some(), "{} elemtype.{t}", l.code()); }
             for t in crate::model::LayerType::ALL { assert!(tr_in(l, &format!("layertype.{}", t.key())).is_some(), "{} layertype", l.code()); }
             for p in ["tx", "ty", "sx", "sy", "rot", "opacity", "path", "skew", "blur", "ox", "oy", "cl", "ct", "cr", "cb", "fx", "fy", "sh", "dg", "dr", "rgb"] {

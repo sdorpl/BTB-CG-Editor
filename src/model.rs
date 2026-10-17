@@ -373,7 +373,7 @@ impl Layer {
             LayerType::Text => {
                 l.field = Some("TITLE".into());
                 l.text = Some(String::new());
-                l.default_text = Some("Tekst".into());
+                l.default_text = Some(crate::i18n::tr("preset.default_text").into());
                 l.font = Some(FontStyle::default());
                 l.squash = Some(false);
                 l.w = 600.0;

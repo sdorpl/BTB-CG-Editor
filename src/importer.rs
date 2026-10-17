@@ -3,6 +3,7 @@
 //! The server only serves static files (`express.static`) and `/api/upload` over HTTP; live state
 //! travels over Socket.io. The one thing reachable with a plain GET is `db.json` (graphics[] /
 //! library[] — the startup pattern; edits made only in SQLite show up after `node export-db.js`).
+use crate::i18n::{tr, trf};
 use crate::model::Element;
 use serde_json::Value;
 use std::sync::mpsc::{Receiver, Sender};
@@ -17,7 +18,7 @@ pub type FetchResult = Result<Vec<Loaded>, String>;
 
 /// Accepts a v3 export (`elements[]`), a state/db.json (`graphics[]`, `library[]`), an array, or a bare element.
 pub fn parse_elements(text: &str) -> Result<Vec<Loaded>, String> {
-    let v: Value = serde_json::from_str(text).map_err(|e| format!("Niepoprawny JSON: {e}"))?;
+    let v: Value = serde_json::from_str(text).map_err(|e| trf("importer.bad_json", &[("err", &e)]))?;
     let mut raw: Vec<(String, Value)> = vec![];
     let mut push = |src: &str, arr: Option<&Vec<Value>>| if let Some(a) = arr { for x in a { raw.push((src.to_string(), x.clone())); } };
     match &v {
@@ -34,7 +35,7 @@ pub fn parse_elements(text: &str) -> Result<Vec<Loaded>, String> {
         _ => {}
     }
     if raw.is_empty() {
-        return Err("Nie znaleziono elementów (oczekiwano elements[] / graphics[] / library[] lub pojedynczego elementu).".into());
+        return Err(tr("importer.no_elements").into());
     }
     let mut out = vec![];
     let mut errors = vec![];
@@ -44,7 +45,7 @@ pub fn parse_elements(text: &str) -> Result<Vec<Loaded>, String> {
             Err(e) => errors.push(format!("{}: {}", val.get("id").and_then(|x| x.as_str()).unwrap_or("?"), e)),
         }
     }
-    if out.is_empty() { return Err(format!("Błąd odczytu elementów: {}", errors.join("; "))); }
+    if out.is_empty() { return Err(trf("importer.read_errors", &[("err", &errors.join("; "))])); }
     Ok(out)
 }
 
@@ -68,9 +69,9 @@ pub fn fetch_blocking(base: &str) -> FetchResult {
         ureq::get(&url)
             .timeout(std::time::Duration::from_secs(6))
             .call()
-            .map_err(|e| format!("Nie udało się połączyć z {}: {}", url, e))?
+            .map_err(|e| trf("importer.connect_failed", &[("url", &url), ("err", &e)]))?
             .into_string()
-            .map_err(|e| format!("Błąd odczytu odpowiedzi: {e}"))
+            .map_err(|e| trf("importer.read_response", &[("err", &e)]))
     };
     match get("/api/state").and_then(|b| parse_elements(&b)) {
         Ok(list) => Ok(list),
@@ -97,12 +98,12 @@ pub fn push_blocking(base: &str, target: PushTarget, element: &Element) -> Resul
         .set("Content-Type", "application/json")
         .send_string(&body.to_string())
         .map_err(|e| match e {
-            ureq::Error::Status(code, r) => format!("Serwer odrzucił element ({code}): {}", r.into_string().unwrap_or_default()),
-            e => format!("Nie udało się połączyć z {}: {}", url, e),
+            ureq::Error::Status(code, r) => trf("importer.rejected", &[("code", &code), ("err", &r.into_string().unwrap_or_default())]),
+            e => trf("importer.connect_failed", &[("url", &url), ("err", &e)]),
         })?;
-    let v: Value = serde_json::from_str(&resp.into_string().map_err(|e| e.to_string())?).map_err(|e| format!("Błędna odpowiedź serwera: {e}"))?;
+    let v: Value = serde_json::from_str(&resp.into_string().map_err(|e| e.to_string())?).map_err(|e| trf("importer.bad_response", &[("err", &e)]))?;
     let n = |k: &str| v.get(k).and_then(|x| x.as_array()).map_or(0, |a| a.len());
-    let mut msg = format!("Wysłano do {}: dodano {}, zaktualizowano {}.", if target == PushTarget::Bank { "banku" } else { "biblioteki" }, n("added"), n("updated"));
+    let mut msg = trf("importer.pushed", &[("target", &tr(if target == PushTarget::Bank { "importer.target_bank" } else { "importer.target_library" })), ("added", &n("added")), ("updated", &n("updated"))]);
     if let Some(w) = v.get("warnings").and_then(|x| x.as_array()) {
         for item in w {
             for t in item.get("warnings").and_then(|x| x.as_array()).into_iter().flatten().filter_map(|x| x.as_str()) { msg.push_str(&format!(" ⚠ {t}")); }

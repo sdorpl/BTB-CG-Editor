@@ -1,6 +1,7 @@
 //! Oś czasu: paski presetów (IN / OUT / pętla / tekst) oraz klucze użytkownika (`Layer.keys`) z
 //! zaznaczaniem, przeciąganiem, dodawaniem, usuwaniem i edycją interpolacji (Easy Ease, prędkość / wpływ).
 use crate::compile;
+use crate::i18n::{tr, trf};
 use crate::model::*;
 use crate::keyconv::{self, Scope};
 use crate::motion_bridge::{ELEMENT, KEY_PROPS};
@@ -74,23 +75,23 @@ fn bar(p: &egui::Painter, x0: f32, x1: f32, y: f32, col: Color32, label: &str) {
 
 /// Etykiety wszystkich właściwości, które mogą mieć klucze (także te z konwersji presetów).
 pub(crate) fn prop_label(prop: &str) -> &str {
-    if prop == PATH { return "Ścieżka ruchu"; }
-    if let Some((_, l, _)) = KEY_PROPS.iter().find(|(p, _, _)| *p == prop) { return l; }
     match prop {
-        "skew" => "Skos",
-        "blur" => "Rozmycie",
-        "ox" => "Punkt odniesienia X",
-        "oy" => "Punkt odniesienia Y",
-        "cl" => "Przycięcie z lewej",
-        "ct" => "Przycięcie z góry",
-        "cr" => "Przycięcie z prawej",
-        "cb" => "Przycięcie z dołu",
-        "fx" => "Odwrócenie X",
-        "fy" => "Odwrócenie Y",
-        "sh" => "Żaluzja",
-        "dg" => "Maska ukośna",
-        "dr" => "Kierunek maski",
-        "rgb" => "Rozdzielenie RGB",
+        "tx" => tr("prop.tx"), "ty" => tr("prop.ty"), "sx" => tr("prop.sx"), "sy" => tr("prop.sy"), "rot" => tr("prop.rot"), "opacity" => tr("prop.opacity"),
+        "path" => tr("prop.path"),
+        "skew" => tr("prop.skew"),
+        "blur" => tr("prop.blur"),
+        "ox" => tr("prop.ox"),
+        "oy" => tr("prop.oy"),
+        "cl" => tr("prop.cl"),
+        "ct" => tr("prop.ct"),
+        "cr" => tr("prop.cr"),
+        "cb" => tr("prop.cb"),
+        "fx" => tr("prop.fx"),
+        "fy" => tr("prop.fy"),
+        "sh" => tr("prop.sh"),
+        "dg" => tr("prop.dg"),
+        "dr" => tr("prop.dr"),
+        "rgb" => tr("prop.rgb"),
         _ => prop,
     }
 }
@@ -142,7 +143,7 @@ fn head_time(pb: &Playback, plan: &Plan) -> Option<f32> {
 
 pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playback, selected: &mut Vec<String>, tl: &mut TimelineUi) {
     if el.scene.is_none() {
-        ui.label("Brak sceny — oś czasu dotyczy tylko elementów ze sceną.");
+        ui.label(tr("timeline.no_scene"));
         return;
     }
     let mut acts: Vec<Act> = vec![];
@@ -199,21 +200,21 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
         // wiersz elementu
         let y0 = rect.min.y + 18.0;
         p.rect_filled(Rect::from_min_size(Pos2::new(rect.min.x, y0), Vec2::new(LABEL_W, ROW_H)), 0.0, Color32::from_gray(40));
-        p.text(Pos2::new(rect.min.x + 6.0, y0 + ROW_H / 2.0), egui::Align2::LEFT_CENTER, "★ ELEMENT", egui::FontId::proportional(11.0), Color32::from_rgb(250, 204, 21));
+        p.text(Pos2::new(rect.min.x + 6.0, y0 + ROW_H / 2.0), egui::Align2::LEFT_CENTER, tr("timeline.element_row"), egui::FontId::proportional(11.0), Color32::from_rgb(250, 204, 21));
         let a = el.animation.clone();
         {
             let er = Rect::from_min_size(Pos2::new(rect.min.x, y0), Vec2::new(LABEL_W, ROW_H));
             let eresp = ui.interact(er, ui.id().with("tl-element"), Sense::click());
             eresp.context_menu(|ui| {
-                ui.label("Klucze elementu");
+                ui.label(tr("timeline.element_keys"));
                 let at = head_time(pb, plan).unwrap_or(0.0);
-                for (prop, label, _) in KEY_PROPS.iter() {
+                for (prop, _, _) in KEY_PROPS.iter() {
                     if el.scene.as_ref().is_some_and(|s| s.keys.iter().any(|c| c.prop == *prop)) { continue; }
-                    if ui.button(format!("Dodaj kanał: {label}")).clicked() { acts.push(Act::AddChannel { layer: ELEMENT.to_string(), prop, t: at }); ui.close_menu(); }
+                    if ui.button(trf("timeline.add_channel", &[("name", &prop_label(prop))])).clicked() { acts.push(Act::AddChannel { layer: ELEMENT.to_string(), prop, t: at }); ui.close_menu(); }
                 }
                 ui.separator();
-                if ui.button("Konwertuj animację elementu na klucze").clicked() { acts.push(Act::Convert(Scope::Element)); ui.close_menu(); }
-                if ui.button("Konwertuj wszystkie animacje na klucze").clicked() { acts.push(Act::Convert(Scope::All)); ui.close_menu(); }
+                if ui.button(tr("timeline.convert_element")).clicked() { acts.push(Act::Convert(Scope::Element)); ui.close_menu(); }
+                if ui.button(tr("timeline.convert_all")).clicked() { acts.push(Act::Convert(Scope::All)); ui.close_menu(); }
             });
         }
         if a.anim_in.anim_type != "none" { bar(&p, sx(a.anim_in.delay), sx(a.anim_in.delay + a.anim_in.duration), y0, Color32::from_rgb(34, 197, 94), &a.anim_in.anim_type); }
@@ -236,7 +237,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
                 p.text(Pos2::new(rect.min.x + 22.0, y + ROW_H / 2.0), egui::Align2::LEFT_CENTER, prop_label(&ch.prop), egui::FontId::proportional(10.5), Color32::from_gray(170));
                 p.hline(rect.x_range(), y + ROW_H, Stroke::new(1.0, Color32::from_gray(32)));
                 let cresp = ui.interact(Rect::from_min_size(Pos2::new(rect.min.x, y), Vec2::new(LABEL_W, ROW_H)), ui.id().with(("tl-chan", $id, &ch.prop)), Sense::click());
-                cresp.context_menu(|ui| { if ui.button("Usuń kanał").clicked() { acts.push(Act::RemoveChannel { layer: $id.to_string(), prop: ch.prop.clone() }); ui.close_menu(); } });
+                cresp.context_menu(|ui| { if ui.button(tr("timeline.remove_channel")).clicked() { acts.push(Act::RemoveChannel { layer: $id.to_string(), prop: ch.prop.clone() }); ui.close_menu(); } });
                 // dwuklik na torze = nowy klucz
                 let trow = ui.interact(row, ui.id().with(("tl-row", $id, &ch.prop)), Sense::click_and_drag());
                 if trow.double_clicked() {
@@ -270,14 +271,14 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
                     if kresp.drag_stopped() { key_drag_stopped = true; }
                     kresp.context_menu(|ui| {
                         if !tl.sel.contains(&kr) { tl.sel = vec![kr.clone()]; }
-                        ui.label("Interpolacja");
-                        for (label, kind) in [("Liniowa", Interp::Linear), ("Easy Ease", Interp::Easy), ("Easy Ease — wejście", Interp::EasyIn), ("Easy Ease — wyjście", Interp::EasyOut), ("Auto Bézier", Interp::Auto), ("Hold (trzymaj)", Interp::Hold)] {
+                        ui.label(tr("timeline.interp"));
+                        for (label, kind) in [(tr("interp.linear"), Interp::Linear), (tr("interp.easy"), Interp::Easy), (tr("interp.easy_in"), Interp::EasyIn), (tr("interp.easy_out"), Interp::EasyOut), (tr("interp.auto"), Interp::Auto), (tr("interp.hold"), Interp::Hold)] {
                             if ui.button(label).clicked() { acts.push(Act::Interp { r: kr.clone(), kind }); ui.close_menu(); }
                         }
                         let mut cont = k.continuous;
-                        if ui.checkbox(&mut cont, "Ciągły temporalnie").changed() { acts.push(Act::Continuous { r: kr.clone(), on: cont }); ui.close_menu(); }
+                        if ui.checkbox(&mut cont, tr("timeline.continuous")).changed() { acts.push(Act::Continuous { r: kr.clone(), on: cont }); ui.close_menu(); }
                         ui.separator();
-                        if ui.button("Usuń klucz").clicked() { acts.push(Act::DeleteSelected); ui.close_menu(); }
+                        if ui.button(tr("timeline.delete_key")).clicked() { acts.push(Act::DeleteSelected); ui.close_menu(); }
                     });
                 }
                 y += ROW_H;
@@ -291,7 +292,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
                 p.text(Pos2::new(rect.min.x + 22.0, y + ROW_H / 2.0), egui::Align2::LEFT_CENTER, prop_label(PATH), egui::FontId::proportional(10.5), Color32::from_rgb(147, 197, 253));
                 p.hline(rect.x_range(), y + ROW_H, Stroke::new(1.0, Color32::from_gray(32)));
                 let cresp = ui.interact(Rect::from_min_size(Pos2::new(rect.min.x, y), Vec2::new(LABEL_W, ROW_H)), ui.id().with(("tl-chan", $id, PATH)), Sense::click());
-                cresp.context_menu(|ui| { if ui.button("Usuń ścieżkę ruchu").clicked() { acts.push(Act::RemoveChannel { layer: $id.to_string(), prop: PATH.to_string() }); ui.close_menu(); } });
+                cresp.context_menu(|ui| { if ui.button(tr("timeline.remove_path")).clicked() { acts.push(Act::RemoveChannel { layer: $id.to_string(), prop: PATH.to_string() }); ui.close_menu(); } });
                 let trow = ui.interact(row, ui.id().with(("tl-row", $id, PATH)), Sense::click_and_drag());
                 if trow.double_clicked() {
                     if let Some(pos) = trow.interact_pointer_pos() { acts.push(Act::InsertKey { layer: $id.to_string(), prop: PATH.to_string(), t: snap(time_at(pos.x), alt) }); }
@@ -319,12 +320,12 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
                     if kresp.drag_stopped() { key_drag_stopped = true; }
                     kresp.context_menu(|ui| {
                         if !tl.sel.contains(&kr) { tl.sel = vec![kr.clone()]; }
-                        ui.label("Interpolacja czasowa");
-                        for (label, kind) in [("Liniowa (stała prędkość)", Interp::Linear), ("Easy Ease", Interp::Easy), ("Easy Ease — wejście", Interp::EasyIn), ("Easy Ease — wyjście", Interp::EasyOut), ("Hold (trzymaj)", Interp::Hold)] {
+                        ui.label(tr("timeline.interp_time"));
+                        for (label, kind) in [(tr("interp.linear_const"), Interp::Linear), (tr("interp.easy"), Interp::Easy), (tr("interp.easy_in"), Interp::EasyIn), (tr("interp.easy_out"), Interp::EasyOut), (tr("interp.hold"), Interp::Hold)] {
                             if ui.button(label).clicked() { acts.push(Act::Interp { r: kr.clone(), kind }); ui.close_menu(); }
                         }
                         ui.separator();
-                        if ui.button("Usuń klucz").clicked() { acts.push(Act::DeleteSelected); ui.close_menu(); }
+                        if ui.button(tr("timeline.delete_key")).clicked() { acts.push(Act::DeleteSelected); ui.close_menu(); }
                     });
                 }
                 y += ROW_H;
@@ -345,16 +346,16 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
             let lresp = ui.interact(lr, ui.id().with(("tl-layer", &l.id)), Sense::click());
             if lresp.clicked() { acts.push(Act::SelectLayer(l.id.clone())); }
             lresp.context_menu(|ui| {
-                ui.label("Dodaj kanał kluczy");
+                ui.label(tr("timeline.add_channel_title"));
                 let at = head_time(pb, plan).unwrap_or(0.0);
-                for (prop, label, _) in KEY_PROPS.iter() {
+                for (prop, _, _) in KEY_PROPS.iter() {
                     if l.keys.iter().any(|c| c.prop == *prop) { continue; }
-                    if ui.button(*label).clicked() { acts.push(Act::AddChannel { layer: l.id.clone(), prop, t: at }); ui.close_menu(); }
+                    if ui.button(prop_label(prop)).clicked() { acts.push(Act::AddChannel { layer: l.id.clone(), prop, t: at }); ui.close_menu(); }
                 }
                 ui.separator();
-                if ui.button("Konwertuj animację warstwy na klucze").clicked() { acts.push(Act::Convert(Scope::Layer(l.id.clone()))); ui.close_menu(); }
+                if ui.button(tr("timeline.convert_layer")).clicked() { acts.push(Act::Convert(Scope::Layer(l.id.clone()))); ui.close_menu(); }
                 if l.path.is_none() {
-                    if ui.button("Ścieżka ruchu (pozycja po krzywej)").clicked() { acts.push(Act::AddPath { layer: l.id.clone(), t: at }); ui.close_menu(); }
+                    if ui.button(tr("timeline.add_path")).clicked() { acts.push(Act::AddPath { layer: l.id.clone(), t: at }); ui.close_menu(); }
                 }
             });
 
@@ -455,9 +456,9 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
     for act in converts {
         if let Act::Convert(scope) = act {
             let r = keyconv::convert_presets(el, scope);
-            tl.message = Some(if r.channels == 0 { "Brak presetów do konwersji w tym zakresie.".to_string() } else {
-                format!("Skonwertowano na klucze: {} kanałów, {} kluczy{}{}", r.channels, r.keys, if r.layers > 0 { format!(", warstw: {}", r.layers) } else { String::new() },
-                    if r.skipped.is_empty() { String::new() } else { format!(" (pominięto istniejące kanały: {})", r.skipped.join(", ")) })
+            tl.message = Some(if r.channels == 0 { tr("timeline.nothing_scope").to_string() } else {
+                format!("{}{}{}", trf("timeline.converted", &[("channels", &r.channels), ("keys", &r.keys)]), if r.layers > 0 { trf("timeline.converted_layers", &[("n", &r.layers)]) } else { String::new() },
+                    if r.skipped.is_empty() { String::new() } else { trf("timeline.converted_skipped", &[("names", &r.skipped.join(", "))]) })
             });
             tl.sel.clear();
         }
@@ -548,20 +549,20 @@ fn detail_strip(ui: &mut Ui, el: &mut Element, plan: &Plan, tl: &mut TimelineUi)
     ui.horizontal_wrapped(|ui| {
         let mut stop = el.animation.extra.get("stopAt").and_then(|v| v.as_f64()).map(|v| v as f32).unwrap_or(plan.in_total);
         let before = stop;
-        ui.label("Stop:");
-        ui.add(egui::DragValue::new(&mut stop).speed(0.02).range(0.05..=60.0).suffix(" s")).on_hover_text("Moment zatrzymania (hold) na wizji; klucze po nim należą do wyjścia");
+        ui.label(tr("timeline.stop"));
+        ui.add(egui::DragValue::new(&mut stop).speed(0.02).range(0.05..=60.0).suffix(" s")).on_hover_text(tr("timeline.stop.hover"));
         if (stop - before).abs() > 1e-6 { el.animation.extra.insert("stopAt".into(), serde_json::Value::from(stop)); }
-        if el.animation.extra.contains_key("stopAt") && ui.small_button("auto").on_hover_text("Wróć do Stop wyliczonego z animacji").clicked() { el.animation.extra.remove("stopAt"); }
-        if ui.button("Presety na klucze").on_hover_text("Zamienia animacje IN/OUT elementu i warstw na edytowalne klucze (wygląd i czas bez zmian)").clicked() {
+        if el.animation.extra.contains_key("stopAt") && ui.small_button(tr("timeline.auto")).on_hover_text(tr("timeline.auto.hover")).clicked() { el.animation.extra.remove("stopAt"); }
+        if ui.button(tr("timeline.presets_to_keys")).on_hover_text(tr("timeline.presets_to_keys.hover")).clicked() {
             let r = keyconv::convert_presets(el, Scope::All);
-            tl.message = Some(if r.channels == 0 { "Brak presetów do konwersji.".to_string() } else { format!("Skonwertowano na klucze: {} kanałów, {} kluczy, warstw: {}", r.channels, r.keys, r.layers) });
+            tl.message = Some(if r.channels == 0 { tr("timeline.nothing").to_string() } else { format!("{}{}", trf("timeline.converted", &[("channels", &r.channels), ("keys", &r.keys)]), trf("timeline.converted_layers", &[("n", &r.layers)])) });
             tl.sel.clear();
         }
         if let Some(m) = &tl.message { ui.weak(m.clone()); }
-        ui.checkbox(&mut tl.graph_open, "Wykres").on_hover_text("Edytor krzywych: wartość i prędkość wybranego kanału");
+        ui.checkbox(&mut tl.graph_open, tr("timeline.graph")).on_hover_text(tr("timeline.graph.hover"));
         ui.separator();
         let Some(r) = (tl.sel.len() == 1).then(|| tl.sel[0].clone()) else {
-            ui.weak(if tl.sel.is_empty() { "PPM na warstwie: dodaj kanał kluczy · dwuklik na torze: nowy klucz" } else { "zaznaczono kilka kluczy (przeciągnij, aby przesunąć; Del usuwa)" });
+            ui.weak(if tl.sel.is_empty() { tr("timeline.hint") } else { tr("timeline.hint_multi") });
             return;
         };
         let Some(scene) = el.scene.as_mut() else { return };
@@ -574,7 +575,7 @@ fn detail_strip(ui: &mut Ui, el: &mut Element, plan: &Plan, tl: &mut TimelineUi)
         ui.label(egui::RichText::new(prop_label(&r.prop)).strong());
         let (mut t, mut v) = (k.t, k.v);
         ui.add(egui::DragValue::new(&mut t).speed(0.01).range(0.0..=120.0).prefix("t ").suffix(" s"));
-        ui.add(egui::DragValue::new(&mut v).speed(if r.prop.starts_with('s') || r.prop == "opacity" { 0.01 } else { 0.5 }).prefix("wartość "));
+        ui.add(egui::DragValue::new(&mut v).speed(if r.prop.starts_with('s') || r.prop == "opacity" { 0.01 } else { 0.5 }).prefix(tr("timeline.value_prefix")));
         if (t - k.t).abs() > 1e-6 {
             let (moved, sel) = ch.move_keys(&[r.idx], t - k.t);
             *ch = moved;
@@ -582,23 +583,23 @@ fn detail_strip(ui: &mut Ui, el: &mut Element, plan: &Plan, tl: &mut TimelineUi)
             return;
         }
         if (v - k.v).abs() > 1e-9 { ch.keys[r.idx].v = v; }
-        for (out, label) in [(false, "wej."), (true, "wyj.")] {
+        for (out, label) in [(false, tr("timeline.in_short")), (true, tr("timeline.out_short"))] {
             match ch.side_ease(r.idx, out) {
                 Some(e) => {
                     let mut e = e;
                     let before = e;
                     ui.label(label);
-                    ui.add(egui::DragValue::new(&mut e.speed).speed(1.0).suffix(" /s")).on_hover_text("Prędkość w kluczu (jednostki na sekundę)");
+                    ui.add(egui::DragValue::new(&mut e.speed).speed(1.0).suffix(" /s")).on_hover_text(tr("timeline.speed.hover"));
                     let mut pct = e.influence * 100.0;
-                    ui.add(egui::DragValue::new(&mut pct).speed(0.5).range(0.0..=100.0).suffix(" %")).on_hover_text("Wpływ: jaka część odcinka należy do uchwytu");
+                    ui.add(egui::DragValue::new(&mut pct).speed(0.5).range(0.0..=100.0).suffix(" %")).on_hover_text(tr("timeline.influence.hover"));
                     e.influence = pct / 100.0;
                     if e != before { ch.set_ease(r.idx, out, Ease { speed: e.speed, influence: e.influence }); }
                 }
-                None => { ui.weak(format!("{label} hold")); }
+                None => { ui.weak(trf("timeline.hold_side", &[("side", &label)])); }
             }
         }
         let mut cont = k.continuous;
-        if ui.checkbox(&mut cont, "ciągły").on_hover_text("Prędkość równa po obu stronach klucza").changed() { ch.keys[r.idx].continuous = cont; }
+        if ui.checkbox(&mut cont, tr("timeline.continuous_short")).on_hover_text(tr("timeline.continuous_short.hover")).changed() { ch.keys[r.idx].continuous = cont; }
     });
 }
 
@@ -622,7 +623,7 @@ fn path_detail(ui: &mut Ui, scene: &mut Scene, tl: &mut TimelineUi, r: &KeyRef) 
         path.keys[r.idx].y = y;
     }
     let mut auto = k.auto;
-    if ui.checkbox(&mut auto, "auto Bézier").on_hover_text("Tangenty przestrzenne z sąsiednich kluczy; przeciągnięcie uchwytu na kanwie wyłącza").changed() {
+    if ui.checkbox(&mut auto, tr("timeline.auto_bezier")).on_hover_text(tr("timeline.auto_bezier.hover")).changed() {
         if auto { path.keys[r.idx].auto = true; } else {
             let (tin, tout) = path.tangents(r.idx);
             let key = &mut path.keys[r.idx];
@@ -632,14 +633,14 @@ fn path_detail(ui: &mut Ui, scene: &mut Scene, tl: &mut TimelineUi, r: &KeyRef) 
         }
     }
     let mut rove = k.roving;
-    if ui.checkbox(&mut rove, "roving").on_hover_text("Czas klucza wyliczany tak, by prędkość po ścieżce była stała").changed() {
+    if ui.checkbox(&mut rove, "roving").on_hover_text(tr("timeline.roving.hover")).changed() {
         path.keys[r.idx].roving = rove;
         path.retime_roving();
     }
     // prędkość wzdłuż ścieżki: uchwyty czasowe edytujemy na kanale odległości i przepisujemy do kluczy
     let mut dist = path.distance_channel();
     let mut changed = false;
-    for (out, label) in [(false, "wej."), (true, "wyj.")] {
+    for (out, label) in [(false, tr("timeline.in_short")), (true, tr("timeline.out_short"))] {
         match dist.side_ease(r.idx, out) {
             Some(e) => {
                 let mut e = e;
@@ -651,7 +652,7 @@ fn path_detail(ui: &mut Ui, scene: &mut Scene, tl: &mut TimelineUi, r: &KeyRef) 
                 e.influence = pct / 100.0;
                 if e != before { dist.set_ease(r.idx, out, Ease { speed: e.speed, influence: e.influence }); changed = true; }
             }
-            None => { ui.weak(format!("{label} hold")); }
+            None => { ui.weak(trf("timeline.hold_side", &[("side", &label)])); }
         }
     }
     if changed { path.apply_distance_handles(&dist); }

@@ -12,6 +12,7 @@ use crate::{
     playback::{self, Phase, Playback},
     render::Values,
 };
+use crate::i18n::{tr, trf};
 use eframe::egui;
 use egui::{Color32, RichText};
 use std::path::PathBuf;
@@ -94,12 +95,12 @@ impl CgEditorApp {
     }
 
     pub fn build(_ctx: &egui::Context, cli: Cli) -> Self {
-        let element = Element::new_typed("Nowa belka", cli.new_type.as_deref().unwrap_or("LOWER_THIRD"));
+        let element = Element::new_typed(tr("element.new_name"), cli.new_type.as_deref().unwrap_or("LOWER_THIRD"));
         let json = snapshot(&element);
         let mut app = Self {
             element, selected: vec![], last_clicked: None, canvas: CanvasState::default(), tab: InspectorTab::default(),
             playback: Playback::default(), history: vec![json.clone()], hpos: 0, last_json: json, pending_since: None,
-            path: None, dirty: false, status: "Gotowe.".into(), base_url: String::new(), push_rx: None,
+            path: None, dirty: false, status: tr("status.ready").into(), base_url: String::new(), push_rx: None,
             import: ImportDialog { open: false, url: "localhost:3000".into(), status: String::new(), results: vec![], rx: None,
                 root: crate::convert::find_btb_root().map(|p| p.display().to_string()).unwrap_or_default(), conv: None, conv_log: vec![] },
             clipboard: vec![], timeline: Default::default(), graph: Default::default(), last_time: None, cli: cli.clone(), frame_no: 0, shot_requested: false,
@@ -108,9 +109,9 @@ impl CgEditorApp {
         if let Some(u) = &cli.import_url {
             app.import.url = u.clone();
             app.import.open = true;
-            app.import.status = "Łączenie…".into();
+            app.import.status = tr("import.connecting").into();
             match importer::fetch_blocking(&importer::normalize_base_url(u)) {
-                Ok(r) => { app.base_url = importer::normalize_base_url(u); app.import.results = r; app.import.status = format!("Znaleziono {} elementów.", app.import.results.len()); }
+                Ok(r) => { app.base_url = importer::normalize_base_url(u); app.import.results = r; app.import.status = trf("import.found", &[("n", &app.import.results.len())]); }
                 Err(e) => app.import.status = e,
             }
             if let Some(i) = cli.pick { if i < app.import.results.len() { let l = app.import.results.remove(i); app.load_element(l.element); app.import.open = false; } }
@@ -118,7 +119,7 @@ impl CgEditorApp {
         if let Some(i) = cli.select {
             if let Some(s) = &app.element.scene { if let Some(l) = s.layers.get(i) { app.selected = vec![l.id.clone()]; } }
         }
-        if cli.convert_keys { let r = crate::keyconv::convert_presets(&mut app.element, crate::keyconv::Scope::All); app.status = format!("Presety → klucze: {} kanałów, {} kluczy", r.channels, r.keys); }
+        if cli.convert_keys { let r = crate::keyconv::convert_presets(&mut app.element, crate::keyconv::Scope::All); app.status = trf("status.presets_to_keys", &[("channels", &r.channels), ("keys", &r.keys)]); }
         if cli.graph {
             app.timeline.graph_open = true;
             if let Some((l, c)) = app.element.scene.as_ref().and_then(|s| s.layers.iter().find_map(|l| l.keys.first().map(|c| (l.id.clone(), c.prop.clone())))) {
@@ -150,7 +151,7 @@ impl CgEditorApp {
     fn load_element(&mut self, el: Element) {
         self.element = el;
         self.reset_history();
-        self.status = format!("Wczytano: {}", self.element.name);
+        self.status = trf("status.loaded", &[("name", &self.element.name)]);
     }
 
     fn new_element(&mut self, t: &str) {
@@ -168,11 +169,11 @@ impl CgEditorApp {
                     self.path = Some(p);
                 } else {
                     self.import.results = list;
-                    self.import.status = format!("Plik zawiera {} elementów — wybierz.", self.import.results.len());
+                    self.import.status = trf("import.file_many", &[("n", &self.import.results.len())]);
                     self.import.open = true;
                 }
             }
-            Err(e) => self.status = format!("Nie można otworzyć: {e}"),
+            Err(e) => self.status = trf("status.open_failed", &[("err", &e)]),
         }
     }
 
@@ -180,8 +181,8 @@ impl CgEditorApp {
         self.flush_compile();
         let doc = serde_json::json!({ "_exportVersion": 3, "elements": [&self.element] });
         match serde_json::to_string_pretty(&doc).map_err(|e| e.to_string()).and_then(|s| std::fs::write(&p, s).map_err(|e| e.to_string())) {
-            Ok(_) => { self.status = format!("Zapisano: {}", p.display()); self.path = Some(p); self.dirty = false; }
-            Err(e) => self.status = format!("Błąd zapisu: {e}"),
+            Ok(_) => { self.status = trf("status.saved", &[("path", &p.display())]); self.path = Some(p); self.dirty = false; }
+            Err(e) => self.status = trf("status.save_failed", &[("err", &e)]),
         }
     }
 
@@ -201,8 +202,8 @@ impl CgEditorApp {
     fn open_preview(&mut self) {
         self.flush_compile();
         self.status = match crate::preview::open(&self.element, &self.base_url) {
-            Ok(p) => format!("Podgląd otwarty w przeglądarce: {}", p.display()),
-            Err(e) => format!("Podgląd niedostępny: {e}"),
+            Ok(p) => trf("status.preview_opened", &[("path", &p.display())]),
+            Err(e) => trf("status.preview_unavailable", &[("err", &e)]),
         };
     }
 
@@ -331,14 +332,14 @@ impl CgEditorApp {
     fn start_convert(&mut self, els: Vec<Element>, current: bool, load: bool) {
         if els.is_empty() || self.import.conv.is_some() { return; }
         self.import.conv_log.clear();
-        self.status = format!("Konwersja {} elem. na sceny…", els.len());
+        self.status = trf("convert.running", &[("n", &els.len())]);
         self.import.status = self.status.clone();
         let ids = els.iter().map(|e| e.id.clone()).collect();
         self.import.conv = Some(ConvertJob { rx: crate::convert::convert_async(&self.import.root, els), ids, current, load });
     }
 
     fn convert_current(&mut self) {
-        if !crate::convert::needs_conversion(&self.element) { self.status = "Element ma już scenę (lub nie ma kodu do konwersji).".into(); return; }
+        if !crate::convert::needs_conversion(&self.element) { self.status = tr("convert.already_scene").into(); return; }
         self.flush_compile();
         self.start_convert(vec![self.element.clone()], true, true);
     }
@@ -348,7 +349,7 @@ impl CgEditorApp {
         let res = match job.rx.try_recv() {
             Ok(r) => r,
             Err(std::sync::mpsc::TryRecvError::Empty) => { ctx.request_repaint_after(std::time::Duration::from_millis(150)); return; }
-            Err(_) => Err("Konwersja przerwana.".into()),
+            Err(_) => Err(tr("convert.aborted").into()),
         };
         let job = self.import.conv.take().unwrap();
         match res {
@@ -358,17 +359,17 @@ impl CgEditorApp {
                 let mut to_load: Option<Element> = None;
                 for (id, c) in job.ids.iter().zip(list) {
                     for w in &c.warnings { self.import.conv_log.push(format!("{id}: {w}")); }
-                    for n in &c.notes { self.import.conv_log.push(format!("{id}: odtworzono z kodu — {n}")); }
+                    for n in &c.notes { self.import.conv_log.push(trf("convert.log_note", &[("id", &id), ("note", &n)])); }
                     match c.element {
                         Some(el) => {
                             ok += 1;
                             if let Some(r) = self.import.results.iter_mut().find(|r| &r.element.id == id) { r.element = el.clone(); }
                             if job.load && to_load.is_none() { to_load = Some(el); }
                         }
-                        None => { failed += 1; self.import.conv_log.push(format!("{id}: BŁĄD — {}", c.error.unwrap_or_default())); }
+                        None => { failed += 1; self.import.conv_log.push(trf("convert.log_error", &[("id", &id), ("err", &c.error.unwrap_or_default())])); }
                     }
                 }
-                let msg = format!("Skonwertowano na sceny: {ok}{}", if failed > 0 { format!(", błędy: {failed}") } else { String::new() });
+                let msg = if failed > 0 { trf("convert.done_failed", &[("ok", &ok), ("failed", &failed)]) } else { trf("convert.done", &[("ok", &ok)]) };
                 if let Some(el) = to_load { self.load_element(el); self.import.open = false; if job.current { self.dirty = true; } }
                 self.import.status = msg.clone();
                 self.status = msg;
@@ -379,7 +380,7 @@ impl CgEditorApp {
     /// Sends the open element to the running BTB-CG (server address from the import dialog).
     fn push_to_btb(&mut self, target: importer::PushTarget) {
         self.flush_compile();
-        self.status = "Wysyłanie do BTB-CG…".into();
+        self.status = tr("push.sending").into();
         self.push_rx = Some(importer::push_async(&self.import.url, target, self.element.clone()));
     }
 
@@ -398,7 +399,7 @@ impl CgEditorApp {
         self.poll_convert(ctx);
         if let Some(rx) = &self.import.rx {
             match rx.try_recv() {
-                Ok(Ok(r)) => { self.import.status = format!("Znaleziono {} elementów.", r.len()); self.import.results = r; self.import.rx = None; self.base_url = importer::normalize_base_url(&self.import.url); }
+                Ok(Ok(r)) => { self.import.status = trf("import.found", &[("n", &r.len())]); self.import.results = r; self.import.rx = None; self.base_url = importer::normalize_base_url(&self.import.url); }
                 Ok(Err(e)) => { self.import.status = e; self.import.rx = None; }
                 Err(std::sync::mpsc::TryRecvError::Empty) => ctx.request_repaint_after(std::time::Duration::from_millis(100)),
                 Err(_) => self.import.rx = None,
@@ -408,29 +409,29 @@ impl CgEditorApp {
         let mut open = true;
         let mut pick: Option<usize> = None;
         let mut convert_one: Option<usize> = None;
-        egui::Window::new("Importuj elementy").open(&mut open).default_width(520.0).show(ctx, |ui| {
+        egui::Window::new(tr("import.title")).open(&mut open).default_width(520.0).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("BTB-CG:");
                 ui.add(egui::TextEdit::singleline(&mut self.import.url).desired_width(220.0));
-                if ui.add_enabled(self.import.rx.is_none(), egui::Button::new("Pobierz z serwera")).clicked() {
-                    self.import.status = "Łączenie…".into();
+                if ui.add_enabled(self.import.rx.is_none(), egui::Button::new(tr("import.fetch"))).clicked() {
+                    self.import.status = tr("import.connecting").into();
                     self.import.results.clear();
                     self.import.rx = Some(importer::fetch_async(&self.import.url));
                 }
-                if ui.button("Z pliku…").clicked() { self.open_dialog(); }
+                if ui.button(tr("import.from_file")).clicked() { self.open_dialog(); }
             });
-            ui.label(RichText::new("Pobiera bieżący stan z serwera (GET /api/state: bank + biblioteka); starsze serwery — db.json (stan startowy). Adres służy też do „Wyślij do BTB-CG”.").small().color(Color32::from_gray(140)));
+            ui.label(RichText::new(tr("import.hint")).small().color(Color32::from_gray(140)));
             ui.horizontal(|ui| {
-                ui.label("Konwersja kodu → scena, katalog BTB-CG:");
+                ui.label(tr("import.convert_root"));
                 ui.add(egui::TextEdit::singleline(&mut self.import.root).desired_width(260.0));
                 let code: Vec<Element> = self.import.results.iter().map(|r| r.element.clone()).filter(crate::convert::needs_conversion).collect();
-                if ui.add_enabled(self.import.conv.is_none() && !code.is_empty(), egui::Button::new(format!("Konwertuj wszystkie kodowe ({})", code.len()))).clicked() {
+                if ui.add_enabled(self.import.conv.is_none() && !code.is_empty(), egui::Button::new(trf("import.convert_all", &[("n", &code.len())]))).clicked() {
                     self.start_convert(code, false, false);
                 }
             });
             if !self.import.status.is_empty() { ui.colored_label(Color32::from_rgb(251, 191, 36), &self.import.status); }
             if !self.import.conv_log.is_empty() {
-                egui::CollapsingHeader::new(format!("Uwagi konwersji ({})", self.import.conv_log.len())).show(ui, |ui| {
+                egui::CollapsingHeader::new(trf("import.notes", &[("n", &self.import.conv_log.len())])).show(ui, |ui| {
                     for l in &self.import.conv_log { ui.label(RichText::new(l).small().color(Color32::from_gray(170))); }
                 });
             }
@@ -443,10 +444,10 @@ impl CgEditorApp {
                         ui.label(RichText::new(name).strong());
                         ui.label(RichText::new(Element::elem_type_label(&r.element.elem_type)).small().color(Color32::from_gray(160)));
                         let code_only = crate::convert::needs_conversion(&r.element);
-                        if code_only { ui.label(RichText::new("kod ręczny").small().color(Color32::from_rgb(239, 68, 68))); }
+                        if code_only { ui.label(RichText::new(tr("import.manual_code")).small().color(Color32::from_rgb(239, 68, 68))); }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.small_button("Wczytaj").clicked() { pick = Some(i); }
-                            if code_only && ui.add_enabled(self.import.conv.is_none(), egui::Button::new("Konwertuj i wczytaj").small()).clicked() { convert_one = Some(i); }
+                            if ui.small_button(tr("import.load")).clicked() { pick = Some(i); }
+                            if code_only && ui.add_enabled(self.import.conv.is_none(), egui::Button::new(tr("import.convert_load")).small()).clicked() { convert_one = Some(i); }
                         });
                     });
                 }
@@ -518,43 +519,43 @@ impl CgEditorApp {
         egui::TopBottomPanel::top("menubar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.label(RichText::new("BTB CGEditor").strong().color(Color32::from_rgb(59, 130, 246)));
-                ui.menu_button("Plik", |ui| {
-                    ui.menu_button("Nowy element ▸", |ui| {
+                ui.menu_button(tr("menu.file"), |ui| {
+                    ui.menu_button(tr("menu.file.new"), |ui| {
                         for t in Element::ELEM_TYPES { if ui.button(Element::elem_type_label(t)).clicked() { self.new_element(t); ui.close_menu(); } }
                     });
-                    if ui.button("Otwórz…   Ctrl+O").clicked() { self.open_dialog(); ui.close_menu(); }
-                    if ui.button("Importuj z BTB-CG…").clicked() { self.import.open = true; ui.close_menu(); }
-                    if ui.add_enabled(crate::convert::needs_conversion(&self.element) && self.import.conv.is_none(), egui::Button::new("Konwertuj kod ręczny na scenę")).clicked() { self.convert_current(); ui.close_menu(); }
-                    if ui.button("Podgląd HTML (renderer BTB-CG)   Ctrl+P").clicked() { self.open_preview(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+O", tr("menu.file.open"))).clicked() { self.open_dialog(); ui.close_menu(); }
+                    if ui.button(tr("menu.file.import")).clicked() { self.import.open = true; ui.close_menu(); }
+                    if ui.add_enabled(crate::convert::needs_conversion(&self.element) && self.import.conv.is_none(), egui::Button::new(tr("menu.file.convert"))).clicked() { self.convert_current(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+P", tr("menu.file.html_preview"))).clicked() { self.open_preview(); ui.close_menu(); }
                     ui.separator();
-                    if ui.add_enabled(self.push_rx.is_none(), egui::Button::new("Wyślij do banku BTB-CG")).on_hover_text("POST /api/elements — ten sam id = aktualizacja, stan operatora zostaje").clicked() { self.push_to_btb(importer::PushTarget::Bank); ui.close_menu(); }
-                    if ui.add_enabled(self.push_rx.is_none(), egui::Button::new("Wyślij do biblioteki BTB-CG")).on_hover_text("POST /api/elements — ten sam id = aktualizacja wzorca").clicked() { self.push_to_btb(importer::PushTarget::Library); ui.close_menu(); }
+                    if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_bank"))).on_hover_text(tr("menu.file.push_bank.hover")).clicked() { self.push_to_btb(importer::PushTarget::Bank); ui.close_menu(); }
+                    if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_library"))).on_hover_text(tr("menu.file.push_library.hover")).clicked() { self.push_to_btb(importer::PushTarget::Library); ui.close_menu(); }
                     ui.separator();
-                    if ui.button("Zapisz   Ctrl+S").clicked() { self.save(); ui.close_menu(); }
-                    if ui.button("Zapisz jako…   Ctrl+Shift+S").clicked() { self.save_as(); ui.close_menu(); }
-                    if ui.button("Kopiuj JSON do schowka").clicked() {
+                    if ui.button(format!("{}   Ctrl+S", tr("menu.file.save"))).clicked() { self.save(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+Shift+S", tr("menu.file.save_as"))).clicked() { self.save_as(); ui.close_menu(); }
+                    if ui.button(tr("menu.file.copy_json")).clicked() {
                         self.flush_compile();
                         let doc = serde_json::json!({ "_exportVersion": 3, "elements": [&self.element] });
                         ctx.copy_text(serde_json::to_string_pretty(&doc).unwrap_or_default());
-                        self.status = "JSON skopiowany do schowka.".into();
+                        self.status = tr("status.json_copied").into();
                         ui.close_menu();
                     }
                 });
-                ui.menu_button("Edycja", |ui| {
-                    if ui.button("Cofnij   Ctrl+Z").clicked() { self.undo(); ui.close_menu(); }
-                    if ui.button("Ponów   Ctrl+Y").clicked() { self.redo(); ui.close_menu(); }
+                ui.menu_button(tr("menu.edit"), |ui| {
+                    if ui.button(format!("{}   Ctrl+Z", tr("menu.edit.undo"))).clicked() { self.undo(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+Y", tr("menu.edit.redo"))).clicked() { self.redo(); ui.close_menu(); }
                     ui.separator();
-                    if ui.button("Kopiuj   Ctrl+C").clicked() { self.copy_selected(); ui.close_menu(); }
-                    if ui.button("Wklej   Ctrl+V").clicked() { self.paste(); ui.close_menu(); }
-                    if ui.button("Duplikuj   Ctrl+D").clicked() { self.duplicate_selected(); ui.close_menu(); }
-                    if ui.button("Usuń   Del").clicked() { self.delete_selected(); ui.close_menu(); }
-                    if ui.button("Zaznacz wszystko   Ctrl+A").clicked() { if let Some(s) = &self.element.scene { self.selected = s.layers.iter().map(|l| l.id.clone()).collect(); } ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+C", tr("menu.edit.copy"))).clicked() { self.copy_selected(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+V", tr("menu.edit.paste"))).clicked() { self.paste(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+D", tr("menu.edit.duplicate"))).clicked() { self.duplicate_selected(); ui.close_menu(); }
+                    if ui.button(format!("{}   Del", tr("menu.edit.delete"))).clicked() { self.delete_selected(); ui.close_menu(); }
+                    if ui.button(format!("{}   Ctrl+A", tr("menu.edit.select_all"))).clicked() { if let Some(s) = &self.element.scene { self.selected = s.layers.iter().map(|l| l.id.clone()).collect(); } ui.close_menu(); }
                 });
-                ui.menu_button("Widok", |ui| {
-                    if ui.button("Dopasuj do pola   F").clicked() { self.canvas.needs_fit = true; ui.close_menu(); }
-                    ui.checkbox(&mut self.canvas.safe_areas, "Bezpieczne obszary");
-                    ui.checkbox(&mut self.canvas.snap, "Przyciąganie");
-                    ui.menu_button("Tło", |ui| { for (b, n) in Bg::ALL { ui.selectable_value(&mut self.canvas.bg, b, n); } });
+                ui.menu_button(tr("menu.view"), |ui| {
+                    if ui.button(format!("{}   F", tr("menu.view.fit"))).clicked() { self.canvas.needs_fit = true; ui.close_menu(); }
+                    ui.checkbox(&mut self.canvas.safe_areas, tr("menu.view.safe_areas"));
+                    ui.checkbox(&mut self.canvas.snap, tr("menu.view.snap"));
+                    ui.menu_button(tr("menu.view.bg"), |ui| { for b in Bg::ALL { ui.selectable_value(&mut self.canvas.bg, b, b.label()); } });
                 });
                 ui.separator();
                 let title = if self.element.name.is_empty() { self.element.id.clone() } else { self.element.name.clone() };
@@ -568,8 +569,8 @@ impl CgEditorApp {
             ui.horizontal(|ui| {
                 ui.label(RichText::new(&self.status).small().color(Color32::from_gray(170)));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(RichText::new(format!("zoom {:.0}%", self.canvas.zoom * 100.0)).small().monospace());
-                    if let Some(s) = &self.element.scene { ui.label(RichText::new(format!("{} warstw · zaznaczono {}", s.layers.len(), self.selected.len())).small().monospace()); }
+                    ui.label(RichText::new(trf("status.zoom", &[("pct", &format!("{:.0}", self.canvas.zoom * 100.0))])).small().monospace());
+                    if let Some(s) = &self.element.scene { ui.label(RichText::new(trf("status.layers", &[("layers", &s.layers.len()), ("selected", &self.selected.len())])).small().monospace()); }
                     if let Some(p) = &self.path { ui.label(RichText::new(p.display().to_string()).small().color(Color32::from_gray(120))); }
                 });
             });
@@ -578,17 +579,17 @@ impl CgEditorApp {
         // ── timeline ──
         egui::TopBottomPanel::bottom("timeline").resizable(true).default_height(250.0).min_height(110.0).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("OŚ CZASU").size(10.0).strong().color(Color32::from_gray(150)));
+                ui.label(RichText::new(tr("timeline.title")).size(10.0).strong().color(Color32::from_gray(150)));
                 if ui.button("▶ IN").clicked() { self.playback.auto_cycle = false; self.playback.play_in(); }
                 if ui.button("▶ OUT").clicked() { self.playback.auto_cycle = false; self.playback.play_out(); }
-                if ui.button("⟳ Cykl").on_hover_text("IN → trzymaj → OUT").clicked() { self.playback.cycle(); }
+                if ui.button(tr("timeline.cycle")).on_hover_text(tr("timeline.cycle.hover")).clicked() { self.playback.cycle(); }
                 if ui.button("■ Stop").clicked() { self.playback.stop(); }
-                ui.add(egui::DragValue::new(&mut self.playback.hold_secs).speed(0.05).range(0.2..=20.0).prefix("trzymaj ").suffix(" s"));
+                ui.add(egui::DragValue::new(&mut self.playback.hold_secs).speed(0.05).range(0.2..=20.0).prefix(tr("timeline.hold_prefix")).suffix(" s"));
                 let (txt, col) = match self.playback.phase {
-                    Phase::Idle => ("edycja", Color32::from_gray(140)),
-                    Phase::In => ("wejście…", Color32::from_rgb(34, 197, 94)),
-                    Phase::Hold => ("na wizji", Color32::from_rgb(251, 191, 36)),
-                    Phase::Out => ("wyjście…", Color32::from_rgb(239, 68, 68)),
+                    Phase::Idle => (tr("phase.idle"), Color32::from_gray(140)),
+                    Phase::In => (tr("phase.in"), Color32::from_rgb(34, 197, 94)),
+                    Phase::Hold => (tr("phase.hold"), Color32::from_rgb(251, 191, 36)),
+                    Phase::Out => (tr("phase.out"), Color32::from_rgb(239, 68, 68)),
                 };
                 ui.label(RichText::new(txt).color(col));
             });
@@ -606,7 +607,7 @@ impl CgEditorApp {
                 draw_layers_panel(ui, scene, &mut self.selected, &mut self.last_clicked);
             } else {
                 ui.add_space(8.0);
-                ui.label("Element z kodem ręcznym — brak warstw.");
+                ui.label(tr("layers.manual_code"));
             }
         });
 
@@ -620,27 +621,27 @@ impl CgEditorApp {
         egui::CentralPanel::default().frame(egui::Frame::none().fill(Color32::from_gray(18))).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.add_space(6.0);
-                if ui.small_button("⛶ Pole").on_hover_text("Dopasuj do pola 1920×1080 (F)").clicked() { self.canvas.needs_fit = true; }
-                if ui.small_button("▭ Ramka").on_hover_text("Dopasuj do ramki elementu").clicked() {
+                if ui.small_button(tr("canvas.fit_field")).on_hover_text(tr("canvas.fit_field.hover")).clicked() { self.canvas.needs_fit = true; }
+                if ui.small_button(tr("canvas.fit_frame")).on_hover_text(tr("canvas.fit_frame.hover")).clicked() {
                     let rect = ui.available_rect_before_wrap();
                     if let Some(s) = &self.element.scene { let fo = self.element.layout.frame_origin(s.frame.w, s.frame.h); self.canvas.fit_frame(rect, fo, (s.frame.w, s.frame.h)); }
                 }
                 if ui.small_button("1:1").clicked() { self.canvas.zoom = 1.0; }
-                if ui.small_button("🌐 Podgląd HTML").on_hover_text("Renderer BTB-CG w przeglądarce (Ctrl+P)").clicked() { self.open_preview(); }
+                if ui.small_button(tr("canvas.html_preview")).on_hover_text(tr("canvas.html_preview.hover")).clicked() { self.open_preview(); }
                 ui.separator();
-                ui.checkbox(&mut self.canvas.safe_areas, "obszary bezp.");
-                ui.checkbox(&mut self.canvas.snap, "przyciąganie");
+                ui.checkbox(&mut self.canvas.safe_areas, tr("canvas.safe_areas"));
+                ui.checkbox(&mut self.canvas.snap, tr("canvas.snap"));
                 ui.separator();
-                for (b, n) in Bg::ALL { ui.selectable_value(&mut self.canvas.bg, b, n); }
+                for b in Bg::ALL { ui.selectable_value(&mut self.canvas.bg, b, b.label()); }
             });
             if self.element.scene.is_none() {
                 ui.add_space(40.0);
                 ui.vertical_centered(|ui| {
-                    ui.heading("Element z kodem ręcznym (bez sceny)");
-                    ui.label("Ten element jest zapisany jako HTML/CSS/JS — edytor graficzny działa na scenach.");
-                    ui.label("Zobacz kod w zakładce „Kod” albo utwórz scenę (oryginał trafi do codeBackup).");
-                    if ui.button("🌐 Podgląd HTML (renderer BTB-CG)").clicked() { self.open_preview(); }
-                    if ui.button("Utwórz scenę (szkic dla typu)").clicked() {
+                    ui.heading(tr("canvas.manual.heading"));
+                    ui.label(tr("canvas.manual.line1"));
+                    ui.label(tr("canvas.manual.line2"));
+                    if ui.button(tr("canvas.manual.preview")).clicked() { self.open_preview(); }
+                    if ui.button(tr("canvas.manual.create_scene")).clicked() {
                         let backup = serde_json::json!({ "html_template": self.element.html_template, "css_template": self.element.css_template, "js_template": self.element.js_template });
                         self.element.extra.insert("codeBackup".into(), backup);
                         let scene = crate::presets::scene_for(&self.element.elem_type);

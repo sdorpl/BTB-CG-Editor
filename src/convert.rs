@@ -31,9 +31,31 @@ pub fn needs_conversion(el: &Element) -> bool {
 
 fn is_btb_root(p: &Path) -> bool { p.join("scene_convert.js").exists() && p.join("renderer.js").exists() }
 
-/// `$BTB_CG_ROOT`, else a `BTB-CG-System-alpha` checkout next to (or above) the working directory / editor.
+/// Katalog `runtime/` dołączony do paczki (Node, pakiety BTB-CG, przeglądarka): `$BTB_RUNTIME`, obok binarki
+/// (Windows/zip), `../share/btb-cgeditor/runtime` (deb, AppImage) albo `../Resources/runtime` (macOS .app).
+pub fn runtime_dir() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("BTB_RUNTIME") { let p = PathBuf::from(p); if p.is_dir() { return Some(p); } }
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    [dir.join("runtime"), dir.join("../share/btb-cgeditor/runtime"), dir.join("../Resources/runtime")]
+        .into_iter().find(|p| p.join("btb-cg").is_dir())
+}
+
+/// Dołączony Node.js, jeśli jest; inaczej `node` z PATH.
+fn node_command() -> PathBuf {
+    if let Some(rt) = runtime_dir() {
+        for rel in ["node/bin/node", "node/node.exe", "node/node"] {
+            let p = rt.join(rel);
+            if p.is_file() { return p; }
+        }
+    }
+    PathBuf::from("node")
+}
+
+/// `$BTB_CG_ROOT`, potem dołączony `runtime/btb-cg`, potem `BTB-CG-System-alpha` obok (lub nad) katalogiem roboczym / edytorem.
 pub fn find_btb_root() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("BTB_CG_ROOT") { let p = PathBuf::from(p); if is_btb_root(&p) { return Some(p); } }
+    if let Some(p) = runtime_dir().map(|r| r.join("btb-cg")) { if is_btb_root(&p) { return Some(p); } }
     let mut starts: Vec<PathBuf> = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR"))];
     if let Ok(c) = std::env::current_dir() { starts.push(c); }
     for s in starts {
@@ -55,14 +77,20 @@ pub fn convert_async(root: &str, elements: Vec<Element>) -> Receiver<ConvertResu
 
 pub fn convert_blocking(root: &Path, elements: &[Element]) -> ConvertResult {
     if !is_btb_root(root) {
-        return Err(format!("„{}” nie wygląda na katalog BTB-CG (brak scene_convert.js / renderer.js). Podaj ścieżkę do BTB-CG-System.", root.display()));
+        return Err(crate::i18n::trf("convert.not_root", &[("path", &root.display())]));
     }
     let bridge = std::env::temp_dir().join("btb-cgeditor-convert-bridge.js");
-    std::fs::write(&bridge, BRIDGE_JS).map_err(|e| format!("Nie można zapisać mostka konwersji: {e}"))?;
+    std::fs::write(&bridge, BRIDGE_JS).map_err(|e| crate::i18n::trf("convert.bridge_write", &[("err", &e)]))?;
     let input = serde_json::to_vec(elements).map_err(|e| e.to_string())?;
-    let mut child = Command::new("node").arg(&bridge).arg(root)
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().map_err(|e| format!("Nie można uruchomić Node.js (wymagany do konwersji): {e}"))?;
+    let mut cmd = Command::new(node_command());
+    cmd.arg(&bridge).arg(root).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    if let Some(browsers) = runtime_dir().map(|r| r.join("browsers")).filter(|b| b.is_dir()) {
+        if std::env::var_os("PLAYWRIGHT_BROWSERS_PATH").is_none() { cmd.env("PLAYWRIGHT_BROWSERS_PATH", browsers); }
+    }
+    #[cfg(windows)]
+    { use std::os::windows::process::CommandExt; cmd.creation_flags(0x0800_0000); } // CREATE_NO_WINDOW
+    let mut child = cmd
+        .spawn().map_err(|e| crate::i18n::trf("convert.node_spawn", &[("err", &e)]))?;
     let mut stdin = child.stdin.take().ok_or("brak stdin")?;
     let writer = thread::spawn(move || { let _ = stdin.write_all(&input); });
     let out = child.wait_with_output().map_err(|e| e.to_string())?;
@@ -75,15 +103,15 @@ pub fn convert_blocking(root: &Path, elements: &[Element]) -> ConvertResult {
 }
 
 fn parse_bridge_output(stdout: &[u8]) -> ConvertResult {
-    let v: Value = serde_json::from_slice(stdout).map_err(|e| format!("Nieprawidłowa odpowiedź konwertera: {e}"))?;
-    let arr = v.as_array().ok_or("Konwerter zwrócił nieoczekiwany format.")?;
+    let v: Value = serde_json::from_slice(stdout).map_err(|e| crate::i18n::trf("convert.bad_output", &[("err", &e)]))?;
+    let arr = v.as_array().ok_or(crate::i18n::tr("convert.bad_format"))?;
     Ok(arr.iter().map(|r| {
         let warnings: Vec<String> = r.get("warnings").and_then(|w| w.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default();
         let notes: Vec<String> = r.get("notes").and_then(|w| w.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default();
         if r.get("ok").and_then(|x| x.as_bool()) != Some(true) {
-            let error = r.get("error").and_then(|x| x.as_str()).unwrap_or("Nieznany błąd konwersji.").to_string();
+            let error = r.get("error").and_then(|x| x.as_str()).unwrap_or(crate::i18n::tr("convert.unknown_error")).to_string();
             return Converted { element: None, warnings, notes, error: Some(error), summary: String::new() };
         }
         match serde_json::from_value::<Element>(r["element"].clone()) {
@@ -91,11 +119,11 @@ fn parse_bridge_output(stdout: &[u8]) -> ConvertResult {
                 // odtworzone z kodu animacje zmieniły scenę po kompilacji w JS: kod musi odpowiadać scenie
                 if !notes.is_empty() { crate::compile::recompile(&mut el); }
                 let st = &r["stats"];
-                let summary = format!("{} warstw, ramka {}×{}", st["layers"], st["frame"]["w"], st["frame"]["h"]);
+                let summary = crate::i18n::trf("convert.summary", &[("layers", &st["layers"]), ("w", &st["frame"]["w"]), ("h", &st["frame"]["h"])]);
                 Converted { element: Some(el), warnings, notes, error: None, summary }
             }
-            Ok(_) => Converted { element: None, warnings, notes, error: Some("Konwerter nie zwrócił sceny.".into()), summary: String::new() },
-            Err(e) => Converted { element: None, warnings, notes, error: Some(format!("Błąd odczytu wyniku: {e}")), summary: String::new() },
+            Ok(_) => Converted { element: None, warnings, notes, error: Some(crate::i18n::tr("convert.no_scene").into()), summary: String::new() },
+            Err(e) => Converted { element: None, warnings, notes, error: Some(crate::i18n::trf("convert.bad_result", &[("err", &e)])), summary: String::new() },
         }
     }).collect())
 }

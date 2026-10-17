@@ -1,6 +1,7 @@
 //! Software renderer for scene layers on top of egui meshes: gradients, rounded rects, skew/rotate
 //! via a full affine, real text layout (Bahnschrift) with per-glyph effects, images, clock, ticker.
 use crate::anim::{self, Transform, UnitFx};
+use crate::i18n::{tr, trf};
 use crate::model::*;
 use egui::epaint::{Vertex, WHITE_UV};
 use egui::load::{SizeHint, TexturePoll};
@@ -187,7 +188,7 @@ impl<'a> Values<'a> {
                 }
             }
         }
-        if out.is_empty() { out = vec!["PRZYKŁADOWA WIADOMOŚĆ PIERWSZA".into(), "PRZYKŁADOWA WIADOMOŚĆ DRUGA".into(), "PRZYKŁADOWA WIADOMOŚĆ TRZECIA".into()]; }
+        if out.is_empty() { out = vec![tr("render.ticker_sample_1").into(), tr("render.ticker_sample_2").into(), tr("render.ticker_sample_3").into()]; }
         out
     }
 }
@@ -285,6 +286,9 @@ fn apply_transform(text: &str, how: &str) -> String {
         _ => text.to_string() }
 }
 
+/// hhea.ascender / unitsPerEm dla BAHNSCHRIFT.TTF (2036/2048).
+const BAHN_ASCENT: f32 = 2036.0 / 2048.0;
+
 fn font_family() -> FontFamily { FontFamily::Name("Bahnschrift".into()) }
 
 struct TextBox<'a> {
@@ -344,7 +348,11 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
     // egui stawia glif u góry wiersza (cały nadmiar line-height ląduje pod nim); CSS dzieli go po połowie (half-leading).
     let natural_h = ctx.fonts(|f| f.row_height(&FontId::new(size_pts, font_family()))) / zoom;
     let half_leading = (style.size * font.line_height - natural_h) / 2.0;
-    let oy = match font.valign.as_str() { "top" => 0.0, "bottom" => tb.h - th, _ => (tb.h - th) / 2.0 } + half_leading;
+    // Linia bazowa: egui ma ją na `ascent` własnego wiersza (skalowanego do wysokości ascent+descent), przeglądarka na
+    // hhea.ascender; bez tej poprawki tekst Bahnschrift leży ok. 0,17·rozmiar za wysoko względem strony wyjściowej.
+    let egui_ascent = galley.rows.first().and_then(|r| r.glyphs.first().map(|g| g.pos.y - r.rect.min.y)).unwrap_or(0.0) / zoom;
+    let baseline_fix = style.size * BAHN_ASCENT - egui_ascent;
+    let oy = match font.valign.as_str() { "top" => 0.0, "bottom" => tb.h - th, _ => (tb.h - th) / 2.0 } + half_leading + baseline_fix;
 
     let [fw, fh] = ctx.fonts(|f| f.font_image_size());
     let uv_norm = Vec2::new(1.0 / fw as f32, 1.0 / fh as f32);
