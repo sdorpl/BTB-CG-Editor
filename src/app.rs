@@ -29,6 +29,8 @@ pub struct Cli {
     pub import_url: Option<String>,
     pub pick: Option<usize>,
     pub fit_frame: bool,
+    pub live: bool,
+    pub server: Option<String>,
     /// Otwiera edytor krzywych z zaznaczonym pierwszym kluczem (do zrzutów ekranu).
     pub graph: bool,
     /// Po wczytaniu zamienia presety IN/OUT na klucze (do zrzutów ekranu).
@@ -71,6 +73,11 @@ pub struct CgEditorApp {
     status: String,
     base_url: String,
     push_rx: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
+    /// Podgląd na żywo: zmiana elementu → automatyczna wysyłka do banku BTB-CG (M1 4.3.11); `live_sent` = ostatnio wysłany stan.
+    live: bool,
+    live_sent: String,
+    live_try: f64,
+    push_live: bool,
     import: ImportDialog,
     clipboard: Vec<Layer>,
     timeline: timeline::TimelineUi,
@@ -100,7 +107,7 @@ impl CgEditorApp {
         let mut app = Self {
             element, selected: vec![], last_clicked: None, canvas: CanvasState::default(), tab: InspectorTab::default(),
             playback: Playback::default(), history: vec![json.clone()], hpos: 0, last_json: json, pending_since: None,
-            path: None, dirty: false, status: tr("status.ready").into(), base_url: String::new(), push_rx: None,
+            path: None, dirty: false, status: tr("status.ready").into(), base_url: String::new(), push_rx: None, live: false, live_sent: String::new(), live_try: 0.0, push_live: false,
             import: ImportDialog { open: false, url: "localhost:3000".into(), status: String::new(), results: vec![], rx: None,
                 root: crate::convert::find_btb_root().map(|p| p.display().to_string()).unwrap_or_default(), conv: None, conv_log: vec![] },
             clipboard: vec![], timeline: Default::default(), graph: Default::default(), last_time: None, cli: cli.clone(), frame_no: 0, shot_requested: false,
@@ -116,6 +123,8 @@ impl CgEditorApp {
             }
             if let Some(i) = cli.pick { if i < app.import.results.len() { let l = app.import.results.remove(i); app.load_element(l.element); app.import.open = false; } }
         }
+        app.live = cli.live;
+        if let Some(u) = &cli.server { app.import.url = u.clone(); }
         if let Some(i) = cli.select {
             if let Some(s) = &app.element.scene { if let Some(l) = s.layers.get(i) { app.selected = vec![l.id.clone()]; } }
         }
@@ -399,11 +408,26 @@ impl CgEditorApp {
         self.push_rx = Some(importer::push_async(&self.import.url, target, self.element.clone()));
     }
 
+    /// Podgląd na żywo: po ustaniu zmian (bez przeciągania, ≥ 1 s od poprzedniej wysyłki) wysyła element do banku.
+    /// Element na wizji nie jest podmieniany — serwer kolejkuje nową wersję (M1 4.3.12).
+    fn live_push(&mut self, ctx: &egui::Context, now: f64) {
+        if !self.live || self.push_rx.is_some() || self.pending_since.is_some() { return; }
+        if snapshot(&self.element) == self.live_sent { return; }
+        if now - self.live_try < 1.0 { ctx.request_repaint_after(std::time::Duration::from_millis(300)); return; }
+        self.live_try = now;
+        self.push_to_btb(importer::PushTarget::Bank);
+        self.live_sent = snapshot(&self.element);
+        self.push_live = true;
+    }
+
     fn poll_push(&mut self, ctx: &egui::Context) {
         let Some(rx) = &self.push_rx else { return };
         match rx.try_recv() {
-            Ok(Ok(msg)) => { self.status = msg; self.push_rx = None; }
-            Ok(Err(e)) => { self.status = e; self.push_rx = None; }
+            Ok(Ok(msg)) => { self.status = msg; self.push_rx = None; self.push_live = false; }
+            Ok(Err(e)) => {
+                if self.push_live { self.live = false; self.status = trf("status.live_off", &[("err", &e)]); } else { self.status = e; }
+                self.push_rx = None; self.push_live = false;
+            }
             Err(std::sync::mpsc::TryRecvError::Empty) => ctx.request_repaint_after(std::time::Duration::from_millis(100)),
             Err(_) => self.push_rx = None,
         }
@@ -556,6 +580,7 @@ impl CgEditorApp {
                     ui.separator();
                     if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_bank"))).on_hover_text(tr("menu.file.push_bank.hover")).clicked() { self.push_to_btb(importer::PushTarget::Bank); ui.close_menu(); }
                     if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_library"))).on_hover_text(tr("menu.file.push_library.hover")).clicked() { self.push_to_btb(importer::PushTarget::Library); ui.close_menu(); }
+                    if ui.checkbox(&mut self.live, tr("menu.file.live")).on_hover_text(tr("menu.file.live.hover")).changed() && self.live { self.live_sent.clear(); }
                     ui.separator();
                     if ui.button(tr("menu.file.export_pack")).on_hover_text(tr("menu.file.export_pack.hover")).clicked() { self.export_pack(); ui.close_menu(); }
                     if ui.button(format!("{}   Ctrl+S", tr("menu.file.save"))).clicked() { self.save(); ui.close_menu(); }
@@ -707,6 +732,7 @@ impl CgEditorApp {
         crate::panels::graph::draw_graph(ctx, &mut self.element, &mut self.timeline, &mut self.graph);
         self.import_window(ctx);
         self.track_changes(ctx, now);
+        self.live_push(ctx, now);
         self.screenshot_flow(ctx);
     }
 }

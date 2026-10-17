@@ -35,6 +35,8 @@ fn parse_cli() -> Cli {
             "--tab" => cli.tab = it.next(),
             "--import" => cli.import_url = it.next(),
             "--fit-frame" => cli.fit_frame = true,
+            "--live" => cli.live = true,
+            "--server" => cli.server = it.next(),
             "--graph" => cli.graph = true,
             "--convert-keys" => cli.convert_keys = true,
             "--pick" => cli.pick = it.next().and_then(|v| v.parse().ok()),
