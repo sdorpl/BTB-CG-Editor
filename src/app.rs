@@ -480,6 +480,10 @@ impl CgEditorApp {
 pub(crate) fn setup_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     fonts.font_data.insert("Bahnschrift".into(), egui::FontData::from_static(include_bytes!("../assets/BAHNSCHRIFT.TTF")));
+    for (name, data) in [("LiberationRegular", &include_bytes!("../assets/LiberationSans-Regular.ttf")[..]), ("LiberationBold", &include_bytes!("../assets/LiberationSans-Bold.ttf")[..])] {
+        fonts.font_data.insert(name.into(), egui::FontData::from_static(data));
+        fonts.families.insert(egui::FontFamily::Name(name.into()), vec![name.to_string(), "Bahnschrift".to_string()]);
+    }
     let mut fam = vec!["Bahnschrift".to_string()];
     fam.extend(fonts.families.get(&egui::FontFamily::Proportional).cloned().unwrap_or_default());
     fonts.families.insert(egui::FontFamily::Name("Bahnschrift".into()), fam);

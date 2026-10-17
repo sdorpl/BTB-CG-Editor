@@ -285,10 +285,21 @@ fn apply_transform(text: &str, how: &str) -> String {
         _ => text.to_string() }
 }
 
-/// hhea.ascender / unitsPerEm dla BAHNSCHRIFT.TTF (2036/2048).
+/// hhea.ascender / unitsPerEm dla BAHNSCHRIFT.TTF (2036/2048) i LiberationSans (1854/2048).
 const BAHN_ASCENT: f32 = 2036.0 / 2048.0;
+const LIBERATION_ASCENT: f32 = 1854.0 / 2048.0;
 
-fn font_family() -> FontFamily { FontFamily::Name("Bahnschrift".into()) }
+/// Krój do rysowania: Arial/Helvetica/sans-serif to w przeglądarce (Linux) Liberation Sans, metrycznie zgodny z Arialem;
+/// reszta zostaje Bahnschriftem (jak `@font-face` na stronie). Zwraca (rodzina, ascent hhea, prawdziwy bold?).
+fn resolve_font(family: &str, weight: &str) -> (FontFamily, f32, bool) {
+    let bold = weight.parse::<u32>().unwrap_or(400) >= 600 || weight.eq_ignore_ascii_case("bold");
+    let f = family.split(',').next().unwrap_or("").trim().trim_matches(|c| c == '\'' || c == '"').to_ascii_lowercase();
+    if matches!(f.as_str(), "arial" | "helvetica" | "liberation sans" | "sans-serif" | "arial narrow") {
+        (FontFamily::Name(if bold { "LiberationBold" } else { "LiberationRegular" }.into()), LIBERATION_ASCENT, true)
+    } else {
+        (FontFamily::Name("Bahnschrift".into()), BAHN_ASCENT, false)
+    }
+}
 
 struct TextBox<'a> {
     text: &'a str,
@@ -320,18 +331,19 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
     let font = tb.font;
     let text = apply_transform(tb.text, &font.transform);
     if text.is_empty() { return 0.0; }
+    let (family, ascent_em, real_bold) = resolve_font(&font.family, &font.weight);
     let style = TextStyleResolved {
         size: font.size,
         color: parse_css_color(&font.color),
         shadow: parse_text_shadow(&font.shadow),
-        bold_passes: match font.weight.parse::<u32>().unwrap_or(400) { w if w >= 800 => 3, w if w >= 600 => 2, _ => 1 },
+        bold_passes: if real_bold { 1 } else { match font.weight.parse::<u32>().unwrap_or(400) { w if w >= 800 => 3, w if w >= 600 => 2, _ => 1 } },
     };
     let ppp = ctx.pixels_per_point();
     let size_pts = (style.size * zoom).max(1.0);
     let mut job = LayoutJob::default();
     job.wrap.max_width = f32::INFINITY;
     job.append(&text, 0.0, TextFormat {
-        font_id: FontId::new(size_pts, font_family()),
+        font_id: FontId::new(size_pts, family.clone()),
         extra_letter_spacing: font.letter_spacing * zoom,
         line_height: Some(style.size * font.line_height * zoom),
         color: Color32::WHITE,
@@ -345,12 +357,12 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
     let eff_w = tw * sq;
     let ox = match tb.align { "center" => (tb.w - eff_w) / 2.0, "right" => tb.w - eff_w, _ => 0.0 } + tb.dx;
     // egui stawia glif u góry wiersza (cały nadmiar line-height ląduje pod nim); CSS dzieli go po połowie (half-leading).
-    let natural_h = ctx.fonts(|f| f.row_height(&FontId::new(size_pts, font_family()))) / zoom;
+    let natural_h = ctx.fonts(|f| f.row_height(&FontId::new(size_pts, family.clone()))) / zoom;
     let half_leading = (style.size * font.line_height - natural_h) / 2.0;
     // Linia bazowa: egui ma ją na `ascent` własnego wiersza (skalowanego do wysokości ascent+descent), przeglądarka na
     // hhea.ascender; bez tej poprawki tekst Bahnschrift leży ok. 0,17·rozmiar za wysoko względem strony wyjściowej.
     let egui_ascent = galley.rows.first().and_then(|r| r.glyphs.first().map(|g| g.pos.y - r.rect.min.y)).unwrap_or(0.0) / zoom;
-    let baseline_fix = style.size * BAHN_ASCENT - egui_ascent;
+    let baseline_fix = style.size * ascent_em - egui_ascent;
     let oy = match font.valign.as_str() { "top" => 0.0, "bottom" => tb.h - th, _ => (tb.h - th) / 2.0 } + half_leading + baseline_fix;
 
     let [fw, fh] = ctx.fonts(|f| f.font_image_size());
@@ -518,7 +530,7 @@ pub fn draw_scene(painter: &Painter, ctx: &Context, view: &View, sp: &SceneParam
                 let speed = l.speed.unwrap_or(100.0);
                 // measure one repetition width
                 let mut job = LayoutJob::default();
-                job.append(&apply_transform(&one, &font.transform), 0.0, TextFormat { font_id: FontId::new((font.size * zoom).max(1.0), font_family()), extra_letter_spacing: font.letter_spacing * zoom, ..Default::default() });
+                job.append(&apply_transform(&one, &font.transform), 0.0, TextFormat { font_id: FontId::new((font.size * zoom).max(1.0), resolve_font(&font.family, &font.weight).0), extra_letter_spacing: font.letter_spacing * zoom, ..Default::default() });
                 let one_w = (ctx.fonts(|f| f.layout_job(job)).rect.width() / zoom).max(1.0);
                 let off = ((sp.time as f32) * speed) % one_w;
                 let mut f2 = font.clone();
