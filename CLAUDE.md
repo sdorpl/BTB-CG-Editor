@@ -21,6 +21,7 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 | `btb-motion/` | silnik animacji bez zależności od egui i modelu aplikacji: Director / Actor / Channel / Key / Event, `ease.rs` (easingi GSAP), `text.rs` (efekty tekstowe), `path.rs` (ścieżka ruchu), model Ease (prędkość/wpływ) w `curve.rs` |
 | `btb-motion-wasm/` | ten sam silnik jako WASM (C ABI, bez wasm-bindgen), cel `wasm32-unknown-unknown` |
 | `tools/` | `check.sh`, `build-wasm.sh`, testy Node/Playwright (parity WASM, e2e, zgodność z GSAP), `convert-quality.js` (jakość importu) |
+| `docs/DOKUMENTACJA.md`, `docs/INSTRUKCJA-poczatkujacy.md` | dokumentacja aplikacji i instrukcja dla początkujących, **aktualizowane przy każdym commicie zmieniającym aplikację** |
 | `docs/PLAN-btb-motion.md` | plan, decyzje projektowe i status faz silnika, **czytaj przed zmianami w silniku** |
 | `reference/effectcraft/` | repozytorium referencyjne (patrz niżej), poza gitem |
 
@@ -107,6 +108,14 @@ Dalej (z planu): Local Stop z osobnym czasem per Director; ekspresje; ewentualni
 
 - Pisz kod zgodny z otoczeniem (gęstość komentarzy, nazewnictwo, idiomy). `make check` sprawdza formatowanie tylko w `btb-motion*`; `src/` ma dłuższe linie, więc nie uruchamiaj `make fmt` (`cargo fmt --all`) na całości bez zgody.
 - Nie rozszerzaj zakresu poza prośbę; po zmianie uruchom `make check` (lub jego odpowiedni fragment) i podaj wynik zgodnie z prawdą.
+
+## Dokumentacja (aktualizacja przy każdym commicie)
+
+- Dokumentacja użytkowa: `docs/DOKUMENTACJA.md` (opis aplikacji i funkcji) oraz `docs/INSTRUKCJA-poczatkujacy.md` (instrukcja dla początkujących). Po polsku.
+- **Każdy commit zmieniający zachowanie aplikacji** (UI, skróty, menu, model/format pliku, animacje, eksport, CLI, zmienne środowiskowe, ograniczenia) **musi w tym samym commicie zaktualizować dokumentację**: właściwą sekcję `DOKUMENTACJA.md`, a gdy zmiana dotyka codziennej pracy – także `INSTRUKCJA-poczatkujacy.md` (kroki, skróty, rozwiązywanie problemów).
+- Zmiana wyłącznie wewnętrzna (refaktor, testy) nie wymaga edycji dokumentacji; w razie wątpliwości sprawdź, czy opis w docs nadal jest prawdziwy.
+- Zaktualizuj też tabelę „Struktura” i „Znane ograniczenia” w tym pliku, gdy się zmieniły. Dokumentacja i kod nie mogą się rozjechać: usuń opis funkcji, którą usunięto.
+- Nowa funkcja z napisami UI: dokumentacja używa polskich etykiet z `assets/lang/pl.json`.
 
 ## Commity (agent w chmurze)
 
