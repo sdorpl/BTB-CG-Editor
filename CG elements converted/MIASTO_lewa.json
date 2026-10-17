@@ -1,0 +1,227 @@
+{
+  "_exportVersion": 3,
+  "elements": [
+    {
+      "animation": {
+        "in": {
+          "delay": 0.0,
+          "direction": "right",
+          "duration": 0.5,
+          "ease": "ease-out",
+          "type": "zoom"
+        },
+        "out": {
+          "delay": 0.0,
+          "direction": "right",
+          "duration": 0.5,
+          "ease": "ease-in-out",
+          "type": "zoom"
+        }
+      },
+      "codeBackup": {
+        "css_template": "#{{ID}} .na-zywo-wrapper {\n    display: inline-flex;\n    flex-direction: column;\n    align-items: stretch;\n    transform-origin: center center;\n    opacity: 0;\n    transform: {{ANIMATION_IN_TRANSFORM}};\n    transition: all {{ANIMATION_DURATION}}s {{ANIMATION_EASE}};\n    box-shadow: {{BOX_SHADOW}};\n    border-radius: 4px;\n    overflow: hidden;\n}\n#{{ID}} .na-zywo-container {\n    display: inline-flex;\n    align-items: center;\n    background: {{PRIMARY_BG}};\n    padding: 8px 16px;\n    border-radius: 4px;\n    font-family: '{{FONT_FAMILY}}', 'Arial', sans-serif;\n}\n\n#{{ID}} .na-zywo-text {\n    color: {{TITLE_COLOR}};\n    font-size: {{TITLE_SIZE}}px;\n    font-weight: {{TITLE_WEIGHT}};\n    letter-spacing: 1px;\n    text-transform: uppercase;\n}\n",
+        "html_template": "<div class=\"na-zywo-wrapper\">\n    <div class=\"na-zywo-container\">\n        \n        <div class=\"na-zywo-text\">{{{TITLE}}}</div>\n    </div>\n</div>",
+        "js_template": "(() => {\n    const root = document.getElementById(\"{{ID}}\");\n    const container = root.querySelector(\".na-zywo-wrapper\");\n    root.__slt_show = () => {\n        const tl = GSAPFX.standardIn(container, {{{ANIMATION_IN_JSON}}});\n        const textTl = GSAPFX.applyTextEffect(root, {{{TEXT_ANIM_JSON}}});\n        if (textTl) {\n            if ({{{TEXT_ANIM_SYNC}}}) {\n                tl.add(textTl, \">-0.1\");\n            } else {\n                tl.add(textTl, 0);\n            }\n        }\n        return tl;\n    };\n    root.__slt_hide = () => {\n        const textTl = GSAPFX.applyTextOutEffect(root, {{{TEXT_ANIM_OUT_JSON}}});\n        const tl = GSAPFX.standardOut(container, {{{ANIMATION_OUT_JSON}}});\n        if (textTl) {\n            const sync = {{{TEXT_ANIM_OUT_SYNC}}};\n            if (sync) {\n                const combined = gsap.timeline();\n                combined.add(textTl);\n                combined.add(tl, \">-0.1\");\n                return combined;\n            } else {\n                tl.add(textTl, 0);\n            }\n        }\n        return tl;\n    };\n})();",
+        "layout": {
+          "attachOffsetY": 55,
+          "attachedToGraphicId": [
+            "na-zywo-instance-01"
+          ],
+          "layer": 2,
+          "marginX": 50,
+          "marginY": 50,
+          "scale": 1,
+          "side": "top-left",
+          "x": 50,
+          "y": 105
+        },
+        "ocgInputs": [
+          {
+            "default": "",
+            "id": "TITLE",
+            "label": "Tytuł / Imię Nazwisko",
+            "type": "text"
+          },
+          {
+            "default": "",
+            "id": "SUBTITLE",
+            "label": "Podtytuł / Funkcja",
+            "type": "text"
+          }
+        ]
+      },
+      "css_template": "/* SceneModel v1 — wygenerowane ze sceny, nie edytuj ręcznie */\n#{{ID}} .cg-scene { position: relative; width: 183px; height: 58px; pointer-events: none; transform: scale(var(--cg-sx, 1), var(--cg-sy, 1)); transform-origin: top left; }\n#{{ID}} .cg-l, #{{ID}} .cg-i { box-sizing: border-box; }\n#{{ID}} .cg-l { position: absolute; }\n#{{ID}} .cg-i { position: absolute; inset: 0; }\n#{{ID}} .cg-l1 { left: 0px; top: 0px; width: 183px; height: 58px; z-index: 1; }\n#{{ID}} .cg-i1 { background: linear-gradient(160deg, rgb(255, 255, 255) 0%, rgb(224, 224, 224) 100%); border-radius: 10px; }\n#{{ID}} .cg-l2 { left: 0px; top: 0px; width: 183px; height: 58px; z-index: 2; }\n#{{ID}} .cg-i2 { background: linear-gradient(160deg, rgb(255, 255, 255) 0%, rgb(224, 224, 224) 100%); border-radius: 10px; }\n#{{ID}} .cg-l3 { left: 15.9px; top: 18px; width: 151.3px; height: 26px; z-index: 3; }\n#{{ID}} .cg-i3 { display: flex; justify-content: flex-start; align-items: center; font-family: 'Bahnschrift', sans-serif; font-size: 24px; font-weight: 700; color: rgb(0, 0, 0); text-transform: uppercase; text-align: left; letter-spacing: 1px; line-height: 1.4; white-space: nowrap; }\n",
+      "fields": {
+        "primaryColor": "#ffffff",
+        "titleColor": "#000000"
+      },
+      "groupId": "04566c50-94c7-4b9a-bb8e-f244f53d6ddc",
+      "hotkey": null,
+      "html_template": "<div class=\"cg-scene\">\n    <div class=\"cg-l cg-l1\" data-layer=\"sh1\"><div class=\"cg-i cg-i1\"></div></div>\n    <div class=\"cg-l cg-l2\" data-layer=\"sh2\"><div class=\"cg-i cg-i2\"></div></div>\n    <div class=\"cg-l cg-l3\" data-layer=\"tx3\"><div class=\"cg-i cg-i3\"><div class=\"cg-t slt-squash\" data-cg-text=\"1\">{{{TITLE}}}</div></div></div>\n</div>",
+      "id": "8f122d0f-e8c5-4c73-a272-fff860364a71",
+      "introText": "PILNE",
+      "items": [
+        "Wiadomość 1",
+        "Wiadomość 2"
+      ],
+      "js_template": "(() => {\n    const root = document.getElementById(\"{{ID}}\");\n    if (!root) return;\n    const scene = root.querySelector('.cg-scene') || root;\n    const layer = n => root.querySelector('.cg-l' + n);\n    const motions = [];\n    const textNs = [3];\n    const motionOf = n => motions.find(m => m.n === n) || {};\n    const on = c => c && c.type && c.type !== 'none';\n    CGMotion.mount(root, {\n        container: scene,\n        animIn: {{{ANIMATION_IN_JSON}}}, animOut: {{{ANIMATION_OUT_JSON}}},\n        text: { type: 'none' }, textOut: { type: 'none' },\n        loop: {{{LOOP_JSON}}},\n        onShow(tl) {\n            const T = {{{TEXT_ANIM_JSON}}}, TS = {{{TEXT_ANIM_SYNC}}};\n            const baseEnd = tl.duration();\n            motions.forEach(m => {\n                const el = layer(m.n);\n                if (el && on(m.in)) tl.add(CGMotion.standardIn(el, m.in), 0);\n            });\n            textNs.forEach(n => {\n                const el = layer(n), own = motionOf(n).text;\n                const eff = own || T;\n                if (!el || !on(eff)) return;\n                const sub = CGMotion.applyTextEffect(el, eff);\n                if (sub) tl.add(sub, own ? 0 : (TS ? Math.max(0, baseEnd - 0.1) : 0));\n            });\n        },\n        onHide() {\n        }\n    });\n    // Wyjście: najpierw OUT warstw (i ich efekty tekstu), potem OUT całego elementu z inspektora\n    const baseHide = root.__slt_hide;\n    root.__slt_hide = () => {\n        const TO = {{{TEXT_ANIM_OUT_JSON}}}, TOS = {{{TEXT_ANIM_OUT_SYNC}}};\n        const pre = gsap.timeline(), par = gsap.timeline();\n        motions.forEach(m => {\n            const el = layer(m.n);\n            if (el && on(m.out)) pre.add(CGMotion.standardOut(el, m.out), 0);\n        });\n        textNs.forEach(n => {\n            const el = layer(n), own = motionOf(n).textOut;\n            const eff = own || TO;\n            if (!el || !on(eff)) return;\n            const sub = CGMotion.applyTextOutEffect(el, eff);\n            if (!sub) return;\n            if (own) pre.add(sub, 0); else par.add(sub, 0);\n        });\n        const base = baseHide();\n        const tl = gsap.timeline();\n        tl.add(pre);\n        if (TOS) { tl.add(par); tl.add(base, '>-0.1'); }\n        else { tl.add(base); tl.add(par, '<'); }\n        return tl;\n    };\n})();\n",
+      "layout": {
+        "attachOffsetY": 55,
+        "attachedToGraphicId": [
+          "na-zywo-instance-01"
+        ],
+        "height": 58.0,
+        "layer": 2.0,
+        "marginX": 50.0,
+        "marginY": 50.0,
+        "scale": 1.0,
+        "side": "custom",
+        "width": 183.0,
+        "x": 50.099998474121094,
+        "y": 50.0
+      },
+      "name": "MIASTO lewa",
+      "ocgInputs": [
+        {
+          "default": "BIAŁYSTOK",
+          "id": "TITLE",
+          "label": "TITLE — b",
+          "type": "text"
+        }
+      ],
+      "scene": {
+        "detached": false,
+        "frame": {
+          "h": 58.0,
+          "w": 183.0
+        },
+        "layers": [
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 160.0,
+              "color": "rgb(255, 255, 255)",
+              "color2": "rgb(224, 224, 224)",
+              "type": "gradient"
+            },
+            "h": 58.0,
+            "id": "sh1",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — na-zywo-wrapper",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 183.0,
+            "x": 0.0,
+            "y": 0.0
+          },
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 160.0,
+              "color": "rgb(255, 255, 255)",
+              "color2": "rgb(224, 224, 224)",
+              "type": "gradient"
+            },
+            "h": 58.0,
+            "id": "sh2",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — na-zywo-container",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 183.0,
+            "x": 0.0,
+            "y": 0.0
+          },
+          {
+            "defaultText": "BIAŁYSTOK",
+            "field": "TITLE",
+            "font": {
+              "align": "left",
+              "color": "rgb(0, 0, 0)",
+              "family": "Bahnschrift",
+              "italic": false,
+              "letterSpacing": 1.0,
+              "lineHeight": 1.399999976158142,
+              "shadow": "none",
+              "size": 24.0,
+              "transform": "uppercase",
+              "valign": "middle",
+              "weight": "700"
+            },
+            "h": 26.0,
+            "id": "tx3",
+            "locked": false,
+            "motion": {},
+            "name": "TITLE — b",
+            "opacity": 1.0,
+            "rotation": 0.0,
+            "skew": 0.0,
+            "squash": true,
+            "text": "",
+            "type": "text",
+            "visible": true,
+            "w": 151.3000030517578,
+            "x": 15.899999618530273,
+            "y": 18.0
+          }
+        ],
+        "version": 1
+      },
+      "speed": 100,
+      "squashing": false,
+      "style": {
+        "background": {
+          "borderColor": "#ffffff",
+          "borderRadius": 10,
+          "borderWidth": 0,
+          "color": "#ffffff",
+          "color2": "#e0e0e0",
+          "gradientAngle": 160,
+          "opacity": 1,
+          "subtitleBackgroundColor": "#000000",
+          "type": "gradient"
+        },
+        "subtitleTypography": {
+          "color": "#eeeeee",
+          "fontFamily": "Arial",
+          "fontSize": 20,
+          "fontWeight": "normal"
+        },
+        "typography": {
+          "color": "#000000",
+          "fontFamily": "Arial",
+          "fontSize": 30,
+          "fontWeight": "bold"
+        }
+      },
+      "subtitle": "Subtitle",
+      "title": "BIAŁYSTOK",
+      "titleHtml": "<span style=\"font-size: 24px; font-family: Bahnschrift;\"><b>BIAŁYSTOK</b></span>",
+      "type": "BADGE",
+      "url": "",
+      "variant": "custom",
+      "version": 1,
+      "visible": false
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+{
+  "_exportVersion": 3,
+  "elements": [
+    {
+      "accentColor": "linear-gradient(90deg, #ff0055 0%, #e30613 100%)",
+      "animation": {
+        "in": {
+          "delay": 0.0,
+          "direction": "bottom",
+          "duration": 0.6000000238418579,
+          "ease": "ease-out",
+          "type": "slide"
+        },
+        "out": {
+          "delay": 0.0,
+          "direction": "bottom",
+          "duration": 0.4000000059604645,
+          "ease": "ease-out",
+          "type": "slide"
+        }
+      },
+      "backgroundEffect": "pulse",
+      "codeBackup": {
+        "css_template": ".utk-container {\n    position: absolute;\n    bottom: 0; left: 0;\n    width: var(--v-width, 100%);\n    height: var(--v-height, 60px);\n    background: {{PRIMARY_BG}};\n    display: flex;\n    align-items: stretch;\n    overflow: hidden;\n    border: {{BORDER_WIDTH}}px solid {{BORDER_COLOR}};\n    border-radius: {{BORDER_RADIUS}}px;\n    box-shadow: {{BOX_SHADOW}};\n    font-family: '{{FONT_FAMILY}}', sans-serif;\n    opacity: 0;\n    transform: translateY(80px);\n    box-sizing: border-box;\n    --wiper-w: 150px;\n}\n.utk-wiper {\n    position: absolute;\n    left: 0; top: 0; bottom: 0;\n    min-width: 60px;\n    padding: 0 36px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: {{WIPER_BG}};\n    box-shadow: 8px 0 20px rgba(0,0,0,0.55);\n    border-radius: {{BORDER_RADIUS}}px {{BORDER_RADIUS}}px {{BORDER_RADIUS}}px {{BORDER_RADIUS}}px;\n    z-index: 5;\n    overflow: hidden;\n    box-sizing: border-box;\n    white-space: nowrap;\n}\n.utk-gleam {\n    position: absolute; top: 0; left: -120%;\n    width: 60%; height: 100%;\n    background: linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.28) 50%,rgba(255,255,255,0) 100%);\n    transform: skewX(-20deg);\n    animation: utk-gleam-anim 3s infinite ease-in-out;\n    pointer-events: none;\n}\n@keyframes utk-gleam-anim {\n    0%,45% { left: -120%; }\n    100% { left: 160%; }\n}\n.utk-wiper-text {\n    font-size: {{WIPER_FONT_SIZE}}px;\n    font-weight: {{WIPER_FONT_WEIGHT}};\n    font-family: '{{WIPER_FONT}}', sans-serif;\n    color: {{WIPER_TEXT_COLOR}};\n    letter-spacing: {{WIPER_LETTER_SPACING}}px;\n    position: relative; z-index: 1;\n    transition: opacity 0.18s ease;\n}\n/* ---- wiper CSS-class-based animations (keyframe names są re-scopowane przez renderer) ---- */\n.utk-wiper.utk-move-right {\n    animation: utk-slide-right 1s linear forwards;\n}\n.utk-wiper.utk-snap-back {\n    animation: utk-slide-back 0.5s ease-in-out forwards;\n}\n@keyframes utk-slide-right {\n    0%   { left: 0; }\n    100% { left: calc(var(--v-width, 100%) - var(--wiper-w, 150px)); }\n}\n@keyframes utk-slide-back {\n    0%   { left: calc(var(--v-width, 100%) - var(--wiper-w, 150px)); }\n    100% { left: 0; }\n}\n/* ---- body / track ---- */\n.utk-body {\n    flex: 1;\n    overflow: hidden;\n    position: relative;\n    display: flex;\n    align-items: center;\n}\n.utk-track-wrap {\n    position: absolute; inset: 0;\n    display: none;\n    align-items: center;\n    overflow: hidden;\n}\n.utk-track {\n    display: flex;\n    align-items: center;\n    white-space: nowrap;\n    will-change: transform;\n}\n.utk-h-item {\n    color: {{TITLE_COLOR}};\n    font-size: {{TITLE_SIZE}}px;\n    font-weight: {{TITLE_WEIGHT}};\n    text-transform: {{TITLE_TRANSFORM}};\n    padding: 0 20px;\n    white-space: nowrap;\n    display: inline-block;\n}\n.utk-sep {\n    {{SEPARATOR_CSS}}\n    display: inline-block;\n    flex-shrink: 0;\n}\n/* ---- single-wrap (whip/vertical) ---- */\n.utk-single-wrap {\n    position: absolute; inset: 0;\n    display: none;\n    align-items: center;\n    overflow: hidden;\n    padding-left: 20px;\n    box-sizing: border-box;\n}\n.utk-msg {\n    color: {{TITLE_COLOR}};\n    font-size: {{TITLE_SIZE}}px;\n    font-weight: {{TITLE_WEIGHT}};\n    text-transform: {{TITLE_TRANSFORM}};\n    white-space: nowrap;\n    opacity: 0;\n    transition: opacity 0.38s ease;\n    display: block;\n    padding-top: {{PADDING_Y}}px;\n    padding-bottom: {{PADDING_Y}}px;\n}\n.utk-msg.on { opacity: 1; }",
+        "html_template": "<div class=\"utk-container\">\n    <div class=\"utk-wiper\">\n        <div class=\"utk-gleam\"></div>\n        <span class=\"utk-wiper-text\"></span>\n    </div>\n    <div class=\"utk-body\">\n        <div class=\"utk-track-wrap\">\n            <div class=\"utk-track\"></div>\n        </div>\n        <div class=\"utk-single-wrap\">\n            <span class=\"utk-msg\"></span>\n        </div>\n    </div>\n    <span class=\"utk-data\" data-b64=\"{{ITEMS_B64}}\" style=\"display:none;\"></span>\n</div>",
+        "js_template": "(() => {\n    const ROOT = document.getElementById(\"{{ID}}\");\n    if (!ROOT) return;\n\n    const ctn    = ROOT.querySelector('.utk-container');\n    const wiper  = ROOT.querySelector('.utk-wiper');\n    const wtxt   = ROOT.querySelector('.utk-wiper-text');\n    const trkWrp = ROOT.querySelector('.utk-track-wrap');\n    const trk    = ROOT.querySelector('.utk-track');\n    const sngWrp = ROOT.querySelector('.utk-single-wrap');\n    const msg    = ROOT.querySelector('.utk-msg');\n    const dataEl = ROOT.querySelector('.utk-data');\n\n    if (!ctn || !dataEl) { console.warn('[UTK] brak elementów'); return; }\n\n    /* ---- parse items ---- */\n    let items = [];\n    const b64 = (dataEl.getAttribute('data-b64') || '').trim();\n    if (b64) {\n        try {\n            const pad = b64 + '='.repeat((4 - b64.length % 4) % 4);\n            const json = decodeURIComponent(escape(atob(pad)));\n            items = JSON.parse(json);\n        } catch(e) { console.error('[UTK] b64 error', e); }\n    }\n    if (!Array.isArray(items) || !items.length) items = [{text:'BRAK WIADOMOŚCI', category:''}];\n\n    const getText = i => (i && typeof i === 'object') ? (i.text || '') : String(i);\n    const getCat  = i => (i && typeof i === 'object') ? (i.category || '') : '';\n\n    /* ---- settings ---- */\n    const MODERAW  = '{{TICKER_MODE}}';\n    const MODE     = (MODERAW && MODERAW !== 'undefined' && MODERAW !== 'false') ? MODERAW : 'whip';\n    const WIPER_ON = '{{WIPER_SHOW}}' !== 'false';\n    const SPEED    = parseFloat('{{TICKER_SPEED}}') || 100;\n    const DEF_LBL  = ('{{WIPER_TEXT}}' || '').trim();\n\n    /* ---- wiper ---- */\n    function wiperW() { return wiper ? wiper.offsetWidth : 0; }\n\n    function updateWiperVar() {\n        const w = wiperW();\n        ctn.style.setProperty('--wiper-w', w + 'px');\n        sngWrp.style.paddingLeft = (w + 16) + 'px';\n        return w;\n    }\n\n    let _lblTimer = null;\n    function setLabel(lbl, immediate) {\n        if (!wiper || !WIPER_ON) return;\n        const l = (lbl || DEF_LBL || '').trim();\n        if (!l) { wiper.style.display = 'none'; return; }\n        wiper.style.display = 'flex';\n        if (immediate || wtxt.textContent === l) { wtxt.textContent = l; updateWiperVar(); return; }\n        if (_lblTimer) clearTimeout(_lblTimer);\n        wtxt.style.opacity = '0';\n        _lblTimer = setTimeout(() => {\n            wtxt.textContent = l;\n            wtxt.style.opacity = '1';\n            updateWiperVar();\n        }, 180);\n    }\n\n    /* ---- shared timers ---- */\n    let _alive = false;\n    let _timers = [];\n    function t(fn, ms) { const id = setTimeout(() => { if (!_alive) return; fn(); }, ms); _timers.push(id); return id; }\n\n    /* ============ TRYB: WHIP ============ */\n    let _idx = 0;\n\n    function whipNext() {\n        if (!_alive) return;\n        const item = items[_idx];\n        msg.classList.remove('on');\n\n        t(() => {\n            setLabel(getCat(item), true);\n            msg.innerHTML = getText(item);\n            t(() => {\n                msg.classList.add('on');\n                // Trzymaj tekst 4s, potem ukryj i wysuń wiper w prawo\n                t(() => {\n                    msg.classList.remove('on');\n                    t(() => {\n                        // Wiper jedzie w prawo — przez klasę CSS (keyframe jest re-scopowany przez renderer)\n                        wiper.className = 'utk-wiper utk-move-right';\n                        const nextIdx = (_idx + 1) % items.length;\n                        const nextCat = getCat(items[nextIdx]);\n                        // W połowie drogi zmień etykietę\n                        t(() => {\n                            setLabel(nextCat, false);\n                        }, 500);\n                        // Po zakończeniu ruchu w prawo — wróć\n                        t(() => {\n                            wiper.className = 'utk-wiper utk-snap-back';\n                            t(() => {\n                                wiper.className = 'utk-wiper';\n                                wiper.style.left = '0';\n                                _idx = nextIdx;\n                                whipNext();\n                            }, 520);\n                        }, 1020);\n                    }, 380);\n                }, 4000);\n            }, 80);\n        }, 60);\n    }\n\n    /* ============ TRYB: PIONOWY ============ */\n    let _vIdx = 0;\n\n    function vertNext() {\n        if (!_alive) return;\n        const item = items[_vIdx];\n        msg.classList.remove('on');\n        t(() => {\n            setLabel(getCat(item), false);\n            msg.innerHTML = getText(item);\n            t(() => {\n                msg.classList.add('on');\n                const holdMs = Math.max(1500, SPEED * 1000);\n                t(() => {\n                    msg.classList.remove('on');\n                    _vIdx = (_vIdx + 1) % items.length;\n                    t(vertNext, 420);\n                }, holdMs);\n            }, 80);\n        }, 60);\n    }\n\n    /* ============ TRYB: POZIOMY ============ */\n    function startHorizontal() {\n        trkWrp.style.display = 'flex';\n        sngWrp.style.display = 'none';\n        trk.innerHTML = '';\n        const addBatch = () => items.forEach(item => {\n            const s = document.createElement('span');\n            s.className = 'utk-h-item';\n            s.innerHTML = getText(item);\n            trk.appendChild(s);\n            const d = document.createElement('span');\n            d.className = 'utk-sep';\n            trk.appendChild(d);\n        });\n        addBatch(); addBatch();\n        setLabel(getCat(items[0]), true);\n        const pxPerSec = SPEED > 0 ? SPEED : 100;\n        let x = 0, last = null;\n        function tick(ts) {\n            if (!_alive) return;\n            if (last === null) last = ts;\n            x += pxPerSec * ((ts - last) / 1000); last = ts;\n            const half = trk.scrollWidth / 2;\n            if (half > 0 && x >= half) x -= half;\n            trk.style.transform = 'translateX(' + (-x) + 'px)';\n            requestAnimationFrame(tick);\n        }\n        requestAnimationFrame(tick);\n    }\n\n    /* ============ SHOW / HIDE ============ */\n    ROOT.__slt_show = () => {\n        _alive = true;\n        if (MODE === 'horizontal') {\n            trkWrp.style.display = 'flex';\n            sngWrp.style.display = 'none';\n        } else {\n            trkWrp.style.display = 'none';\n            sngWrp.style.display = 'flex';\n        }\n        const G = window.gsap;\n        const run = () => {\n            if (MODE === 'whip')       whipNext();\n            else if (MODE === 'vertical')   vertNext();\n            else if (MODE === 'horizontal') startHorizontal();\n        };\n        if (G) {\n            G.to(ctn, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', onComplete: run });\n        } else {\n            ctn.style.opacity = '1'; ctn.style.transform = 'none'; run();\n        }\n    };\n\n    ROOT.__slt_hide = () => {\n        _alive = false;\n        _timers.forEach(clearTimeout); _timers = [];\n        if (_lblTimer) clearTimeout(_lblTimer);\n        const G = window.gsap;\n        if (G) {\n            const tl = G.timeline();\n            tl.to(ctn, { opacity: 0, y: 80, duration: 0.4, ease: 'power2.in' });\n            return tl;\n        }\n        ctn.style.opacity = '0';\n    };\n})();",
+        "layout": {
+          "height": 40,
+          "layer": 5,
+          "marginX": 50,
+          "marginY": 50,
+          "scale": 1,
+          "side": "bottom-right",
+          "width": 1650,
+          "x": 180
+        },
+        "ocgInputs": []
+      },
+      "css_template": "/* SceneModel v1 — wygenerowane ze sceny, nie edytuj ręcznie */\n#{{ID}} .cg-scene { position: relative; width: 1651px; height: 42px; pointer-events: none; transform: scale(var(--cg-sx, 1), var(--cg-sy, 1)); transform-origin: top left; }\n#{{ID}} .cg-l, #{{ID}} .cg-i { box-sizing: border-box; }\n#{{ID}} .cg-l { position: absolute; }\n#{{ID}} .cg-i { position: absolute; inset: 0; }\n#{{ID}} .cg-l1 { left: 0.2px; top: 1px; width: 1650px; height: 40px; z-index: 1; }\n#{{ID}} .cg-i1 { background: linear-gradient(160deg, rgb(255, 204, 0) 0%, rgb(211, 160, 18) 100%); border-radius: 10px; }\n#{{ID}} .cg-l2 { left: 0px; top: 1px; width: 137px; height: 40px; z-index: 2; }\n#{{ID}} .cg-i2 { background: rgb(144, 20, 20); border-radius: 10px; box-shadow: 8px 0px 20px rgba(0, 0, 0, 0.55); }\n#{{ID}} .cg-l3 { left: 36px; top: 0px; width: 65px; height: 42px; z-index: 3; }\n#{{ID}} .cg-i3 { display: flex; justify-content: flex-start; align-items: center; font-family: 'Bahnschrift', sans-serif; font-size: 30px; font-weight: 900; color: rgb(255, 255, 255); text-align: left; letter-spacing: 1px; line-height: 1.4; white-space: nowrap; }\n#{{ID}} .cg-l4 { left: 153.1px; top: 0px; width: 1138px; height: 42px; z-index: 4; }\n#{{ID}} .cg-i4 { display: flex; justify-content: flex-start; align-items: center; font-family: 'Bahnschrift', sans-serif; font-size: 30px; font-weight: 600; color: rgb(54, 38, 38); text-transform: uppercase; text-align: left; line-height: 1.4; white-space: nowrap; }\n",
+      "features": {
+        "ticker_mode": true,
+        "wiper": true
+      },
+      "fields": {
+        "WIPER_TEXT": "BTB",
+        "accentColor": "#ff0000",
+        "animation": {
+          "in": {
+            "direction": "bottom",
+            "duration": 0.6,
+            "type": "slide"
+          },
+          "out": {
+            "direction": "bottom",
+            "duration": 0.4,
+            "type": "slide"
+          }
+        },
+        "fontFamily": "Bahnschrift",
+        "introText": "PILNE",
+        "layout": {
+          "height": "60",
+          "layer": 5,
+          "marginX": 0,
+          "marginY": 0,
+          "side": "bottom-right",
+          "width": 1920,
+          "x": 0
+        },
+        "primaryColor": "#730000",
+        "secondaryColor": "#ff0055",
+        "style": {
+          "background": {
+            "borderColor": "#000000",
+            "borderRadius": 0,
+            "borderWidth": 0,
+            "color": "#730000",
+            "type": "solid"
+          },
+          "typography": {
+            "color": "#ffffff",
+            "fontFamily": "Bahnschrift",
+            "fontSize": 30,
+            "fontWeight": "600",
+            "textTransform": "uppercase"
+          }
+        },
+        "tickerMode": "whip",
+        "titleColor": "#ffffff",
+        "type": "TICKER"
+      },
+      "groupId": null,
+      "hotkey": null,
+      "html_template": "<div class=\"cg-scene\">\n    <div class=\"cg-l cg-l1\" data-layer=\"sh1\"><div class=\"cg-i cg-i1\"></div></div>\n    <div class=\"cg-l cg-l2\" data-layer=\"sh2\"><div class=\"cg-i cg-i2\"></div></div>\n    <div class=\"cg-l cg-l3\" data-layer=\"tx3\"><div class=\"cg-i cg-i3\"><div class=\"cg-t\" data-cg-text=\"1\">{{{WIPER_TEXT}}}</div></div></div>\n    <div class=\"cg-l cg-l4\" data-layer=\"tx4\"><div class=\"cg-i cg-i4\"><div class=\"cg-t\" data-cg-text=\"1\">PILNE: PREZYDENT K. NAWROCKI WETUJE USTAWĘ WS. PROGRAMU &quot;SAFE&quot;</div></div></div>\n</div>",
+      "id": "urgent-ocg-instance-01",
+      "introText": "",
+      "items": [
+        {
+          "category": "",
+          "text": "PILNE: PREZYDENT K. NAWROCKI WETUJE USTAWĘ WS. PROGRAMU \"SAFE\""
+        },
+        {
+          "category": "",
+          "text": "PREMIER D. TUSK OSTRO O WECIE: \"PREZES PIS POPROWADZIŁ GO JAK ZA RĄCZKĘ\""
+        },
+        {
+          "category": "",
+          "text": "RUCH RZĄDU W ODPOWIEDZI NA WETO. JEST NOWA UCHWAŁA I UPOWAŻNIENIA DLA MINISTRÓW"
+        },
+        {
+          "category": "",
+          "text": "SZEF ZWIĄZKÓW ZAWODOWYCH POLICJI ALARMUJE: LUDZIE LICZYLI NA ŚRODKI Z \"SAFE\""
+        },
+        {
+          "category": "",
+          "text": "PILNE: ZMASOWANY ATAK USA NA IRAŃSKĄ WYSPĘ. \"JEDNO Z NAJSILNIEJSZYCH BOMBARDOWAŃ\""
+        },
+        {
+          "category": "",
+          "text": "TEHERAN ZAPOWIADA ODWET. REŻIM WŚCIEKŁY PO DZIAŁANIACH STANÓW ZJEDNOCZONYCH"
+        },
+        {
+          "category": "",
+          "text": "USA OFERUJĄ GIGANTYCZNĄ NAGRODĘ ZA INFORMACJE O PRZYWÓDCACH IRANU"
+        },
+        {
+          "category": "",
+          "text": "KONGRESMENI USA ALARMUJĄ: ZAWIESZENIE SANKCJI NA ROSYJSKĄ ROPĘ FINANSUJE MACHINĘ WOJENNĄ PUTINA"
+        }
+      ],
+      "js_template": "(() => {\n    const root = document.getElementById(\"{{ID}}\");\n    if (!root) return;\n    const scene = root.querySelector('.cg-scene') || root;\n    const layer = n => root.querySelector('.cg-l' + n);\n    const motions = [];\n    const textNs = [3,4];\n    const motionOf = n => motions.find(m => m.n === n) || {};\n    const on = c => c && c.type && c.type !== 'none';\n    CGMotion.mount(root, {\n        container: scene,\n        animIn: {{{ANIMATION_IN_JSON}}}, animOut: {{{ANIMATION_OUT_JSON}}},\n        text: { type: 'none' }, textOut: { type: 'none' },\n        loop: {{{LOOP_JSON}}},\n        onShow(tl) {\n            const T = {{{TEXT_ANIM_JSON}}}, TS = {{{TEXT_ANIM_SYNC}}};\n            const baseEnd = tl.duration();\n            motions.forEach(m => {\n                const el = layer(m.n);\n                if (el && on(m.in)) tl.add(CGMotion.standardIn(el, m.in), 0);\n            });\n            textNs.forEach(n => {\n                const el = layer(n), own = motionOf(n).text;\n                const eff = own || T;\n                if (!el || !on(eff)) return;\n                const sub = CGMotion.applyTextEffect(el, eff);\n                if (sub) tl.add(sub, own ? 0 : (TS ? Math.max(0, baseEnd - 0.1) : 0));\n            });\n        },\n        onHide() {\n        }\n    });\n    // Wyjście: najpierw OUT warstw (i ich efekty tekstu), potem OUT całego elementu z inspektora\n    const baseHide = root.__slt_hide;\n    root.__slt_hide = () => {\n        const TO = {{{TEXT_ANIM_OUT_JSON}}}, TOS = {{{TEXT_ANIM_OUT_SYNC}}};\n        const pre = gsap.timeline(), par = gsap.timeline();\n        motions.forEach(m => {\n            const el = layer(m.n);\n            if (el && on(m.out)) pre.add(CGMotion.standardOut(el, m.out), 0);\n        });\n        textNs.forEach(n => {\n            const el = layer(n), own = motionOf(n).textOut;\n            const eff = own || TO;\n            if (!el || !on(eff)) return;\n            const sub = CGMotion.applyTextOutEffect(el, eff);\n            if (!sub) return;\n            if (own) pre.add(sub, 0); else par.add(sub, 0);\n        });\n        const base = baseHide();\n        const tl = gsap.timeline();\n        tl.add(pre);\n        if (TOS) { tl.add(par); tl.add(base, '>-0.1'); }\n        else { tl.add(base); tl.add(par, '<'); }\n        return tl;\n    };\n})();\n",
+      "layout": {
+        "height": 42.0,
+        "layer": 5.0,
+        "marginX": 50.0,
+        "marginY": 50.0,
+        "scale": 1.0,
+        "side": "custom",
+        "width": 1651.0,
+        "x": 219.8000030517578,
+        "y": 989.0
+      },
+      "name": "PILNE (OCG)",
+      "ocgInputs": [
+        {
+          "default": "BTB",
+          "id": "WIPER_TEXT",
+          "label": "WIPER_TEXT — utk-wiper-text",
+          "type": "text"
+        }
+      ],
+      "scene": {
+        "detached": false,
+        "frame": {
+          "h": 42.0,
+          "w": 1651.0
+        },
+        "layers": [
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 160.0,
+              "color": "rgb(255, 204, 0)",
+              "color2": "rgb(211, 160, 18)",
+              "type": "gradient"
+            },
+            "h": 40.0,
+            "id": "sh1",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — utk-container",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 1650.0,
+            "x": 0.20000000298023224,
+            "y": 1.0
+          },
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 90.0,
+              "color": "rgb(144, 20, 20)",
+              "color2": "",
+              "type": "solid"
+            },
+            "h": 40.0,
+            "id": "sh2",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — utk-wiper",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": {
+              "blur": 20.0,
+              "color": "rgba(0, 0, 0, 0.55)",
+              "x": 8.0,
+              "y": 0.0
+            },
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 137.0,
+            "x": 0.0,
+            "y": 1.0
+          },
+          {
+            "defaultText": "BTB",
+            "field": "WIPER_TEXT",
+            "font": {
+              "align": "left",
+              "color": "rgb(255, 255, 255)",
+              "family": "Bahnschrift",
+              "italic": false,
+              "letterSpacing": 1.0,
+              "lineHeight": 1.399999976158142,
+              "shadow": "none",
+              "size": 30.0,
+              "transform": "none",
+              "valign": "middle",
+              "weight": "900"
+            },
+            "h": 42.0,
+            "id": "tx3",
+            "locked": false,
+            "motion": {},
+            "name": "WIPER_TEXT — utk-wiper-text",
+            "opacity": 1.0,
+            "rotation": 0.0,
+            "skew": 0.0,
+            "squash": false,
+            "text": "",
+            "type": "text",
+            "visible": true,
+            "w": 65.0,
+            "x": 36.0,
+            "y": 0.0
+          },
+          {
+            "defaultText": "",
+            "font": {
+              "align": "left",
+              "color": "rgb(54, 38, 38)",
+              "family": "Bahnschrift",
+              "italic": false,
+              "letterSpacing": 0.0,
+              "lineHeight": 1.399999976158142,
+              "shadow": "none",
+              "size": 30.0,
+              "transform": "uppercase",
+              "valign": "middle",
+              "weight": "600"
+            },
+            "h": 42.0,
+            "id": "tx4",
+            "locked": false,
+            "motion": {},
+            "name": "Tekst — utk-msg",
+            "opacity": 1.0,
+            "rotation": 0.0,
+            "skew": 0.0,
+            "squash": false,
+            "text": "PILNE: PREZYDENT K. NAWROCKI WETUJE USTAWĘ WS. PROGRAMU \"SAFE\"",
+            "type": "text",
+            "visible": true,
+            "w": 1138.0,
+            "x": 153.10000610351562,
+            "y": 0.0
+          }
+        ],
+        "version": 1
+      },
+      "speed": 5,
+      "squashing": false,
+      "style": {
+        "background": {
+          "borderColor": "#442c2c",
+          "borderRadius": 10,
+          "borderWidth": 0,
+          "color": "#ffcc00",
+          "color2": "#d3a012",
+          "gradientAngle": 160,
+          "type": "gradient"
+        },
+        "typography": {
+          "color": "#362626",
+          "fontFamily": "Bahnschrift",
+          "fontSize": 30,
+          "fontWeight": "600",
+          "textTransform": "uppercase"
+        }
+      },
+      "subtitle": "",
+      "tickerMode": "whip",
+      "title": "",
+      "type": "TICKER",
+      "version": "2.2",
+      "visible": false,
+      "wiper": {
+        "bgColor": "#901414",
+        "fontFamily": "Bahnschrift",
+        "fontSize": 30
+      }
+    }
+  ]
+}

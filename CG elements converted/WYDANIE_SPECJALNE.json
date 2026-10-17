@@ -1,0 +1,248 @@
+{
+  "_exportVersion": 3,
+  "elements": [
+    {
+      "animation": {
+        "in": {
+          "delay": 0.0,
+          "direction": "right",
+          "duration": 0.30000001192092896,
+          "ease": "ease-in",
+          "type": "zoom"
+        },
+        "out": {
+          "delay": 0.0,
+          "direction": "left",
+          "duration": 0.30000001192092896,
+          "ease": "ease-in",
+          "type": "fade"
+        }
+      },
+      "codeBackup": {
+        "css_template": "#{{ID}} .na-zywo-wrapper {\n    display: inline-flex;\n    flex-direction: column;\n    align-items: stretch;\n    transform-origin: center center;\n    opacity: 0;\n    transform: {{ANIMATION_IN_TRANSFORM}};\n    transition: all {{ANIMATION_DURATION}}s {{ANIMATION_EASE}};\n    box-shadow: {{BOX_SHADOW}};\n    border-radius: 4px;\n    overflow: hidden;\n}\n#{{ID}} .na-zywo-container {\n    display: inline-flex;\n    align-items: center;\n    background: {{PRIMARY_BG}};\n    padding: 8px 16px;\n    border-radius: 4px;\n    font-family: '{{FONT_FAMILY}}', 'Arial', sans-serif;\n}\n#{{ID}} .na-zywo-dot {\n    width: 14px;\n    height: 14px;\n    background-color: #ffffff;\n    border-radius: 50%;\n    margin-right: 12px;\n    animation: pulse-dot 1s infinite alternate;\n    box-shadow: {{BOX_SHADOW}};\n}\n#{{ID}} .na-zywo-text {\n    color: {{TITLE_COLOR}};\n    font-size: {{TITLE_SIZE}}px;\n    font-weight: {{TITLE_WEIGHT}};\n    letter-spacing: 1px;\n    text-transform: uppercase;\n}\n@keyframes pulse-dot {\n    0% { opacity: 1; transform: scale(1); }\n    100% { opacity: 0.3; transform: scale(0.9); }\n}",
+        "html_template": "<div class=\"na-zywo-wrapper\">\n    <div class=\"na-zywo-container\">\n        <span class=\"na-zywo-dot\"></span>\n        <div class=\"na-zywo-text\">{{{TITLE}}}</div>\n    </div>\n</div>",
+        "js_template": "(() => {\n    const root = document.getElementById(\"{{ID}}\");\n    const container = root.querySelector(\".na-zywo-wrapper\");\n    root.__slt_show = () => {\n        const tl = GSAPFX.standardIn(container, {{{ANIMATION_IN_JSON}}});\n        const textTl = GSAPFX.applyTextEffect(root, {{{TEXT_ANIM_JSON}}});\n        if (textTl) {\n            if ({{{TEXT_ANIM_SYNC}}}) {\n                tl.add(textTl, \">-0.1\");\n            } else {\n                tl.add(textTl, 0);\n            }\n        }\n        return tl;\n    };\n    root.__slt_hide = () => {\n        const textTl = GSAPFX.applyTextOutEffect(root, {{{TEXT_ANIM_OUT_JSON}}});\n        const tl = GSAPFX.standardOut(container, {{{ANIMATION_OUT_JSON}}});\n        if (textTl) {\n            const sync = {{{TEXT_ANIM_OUT_SYNC}}};\n            if (sync) {\n                const combined = gsap.timeline();\n                combined.add(textTl);\n                combined.add(tl, \">-0.1\");\n                return combined;\n            } else {\n                tl.add(textTl, 0);\n            }\n        }\n        return tl;\n    };\n})();",
+        "layout": {
+          "attachOffsetY": -160,
+          "attachedToGraphicId": [
+            "btb-fullwidth-ticker-01",
+            "trio-1792006912239",
+            "trio-1792007687225"
+          ],
+          "layer": 1,
+          "marginX": 0,
+          "marginY": 0,
+          "scale": 1,
+          "side": "custom",
+          "x": 220,
+          "y": 930
+        },
+        "ocgInputs": [
+          {
+            "default": "NA ŻYWO",
+            "id": "TITLE",
+            "label": "Tekst plakietki",
+            "type": "text"
+          }
+        ]
+      },
+      "css_template": "/* SceneModel v1 — wygenerowane ze sceny, nie edytuj ręcznie */\n#{{ID}} .cg-scene { position: relative; width: 340px; height: 51px; pointer-events: none; transform: scale(var(--cg-sx, 1), var(--cg-sy, 1)); transform-origin: top left; }\n#{{ID}} .cg-l, #{{ID}} .cg-i { box-sizing: border-box; }\n#{{ID}} .cg-l { position: absolute; }\n#{{ID}} .cg-i { position: absolute; inset: 0; }\n#{{ID}} .cg-l1 { left: 0px; top: 0px; width: 340px; height: 51px; z-index: 1; }\n#{{ID}} .cg-i1 { background: linear-gradient(160deg, rgb(185, 28, 28) 0%, rgb(122, 0, 0) 100%); border-radius: 10px; }\n#{{ID}} .cg-l2 { left: 0px; top: 0px; width: 340px; height: 51px; z-index: 2; }\n#{{ID}} .cg-i2 { background: linear-gradient(160deg, rgb(185, 28, 28) 0%, rgb(122, 0, 0) 100%); border-radius: 10px; }\n#{{ID}} .cg-l3 { left: 16.1px; top: 18.5px; width: 14px; height: 14px; z-index: 3; }\n#{{ID}} .cg-i3 { background: rgb(255, 255, 255); border-radius: 7px; }\n#{{ID}} .cg-l4 { left: 42.1px; top: 12.2px; width: 281.7px; height: 26px; z-index: 4; }\n#{{ID}} .cg-i4 { display: flex; justify-content: flex-start; align-items: center; font-family: 'Bahnschrift', sans-serif; font-size: 24px; font-weight: 700; color: rgb(255, 255, 255); text-transform: uppercase; text-align: left; letter-spacing: 1px; line-height: 1.4; white-space: nowrap; }\n",
+      "fields": {
+        "primaryColor": "#b91c1c"
+      },
+      "groupId": "04566c50-94c7-4b9a-bb8e-f244f53d6ddc",
+      "hotkey": null,
+      "html_template": "<div class=\"cg-scene\">\n    <div class=\"cg-l cg-l1\" data-layer=\"sh1\"><div class=\"cg-i cg-i1\"></div></div>\n    <div class=\"cg-l cg-l2\" data-layer=\"sh2\"><div class=\"cg-i cg-i2\"></div></div>\n    <div class=\"cg-l cg-l3\" data-layer=\"sh3\"><div class=\"cg-i cg-i3\"></div></div>\n    <div class=\"cg-l cg-l4\" data-layer=\"tx4\"><div class=\"cg-i cg-i4\"><div class=\"cg-t slt-squash\" data-cg-text=\"1\">{{{TITLE}}}</div></div></div>\n</div>",
+      "id": "b9bb1f87-0d16-4e53-a68f-4f7c64abc4bf",
+      "introText": "",
+      "items": [],
+      "js_template": "(() => {\n    const root = document.getElementById(\"{{ID}}\");\n    if (!root) return;\n    const scene = root.querySelector('.cg-scene') || root;\n    const layer = n => root.querySelector('.cg-l' + n);\n    const motions = [];\n    const textNs = [4];\n    const motionOf = n => motions.find(m => m.n === n) || {};\n    const on = c => c && c.type && c.type !== 'none';\n    CGMotion.mount(root, {\n        container: scene,\n        animIn: {{{ANIMATION_IN_JSON}}}, animOut: {{{ANIMATION_OUT_JSON}}},\n        text: { type: 'none' }, textOut: { type: 'none' },\n        loop: {{{LOOP_JSON}}},\n        onShow(tl) {\n            const T = {{{TEXT_ANIM_JSON}}}, TS = {{{TEXT_ANIM_SYNC}}};\n            const baseEnd = tl.duration();\n            motions.forEach(m => {\n                const el = layer(m.n);\n                if (el && on(m.in)) tl.add(CGMotion.standardIn(el, m.in), 0);\n            });\n            textNs.forEach(n => {\n                const el = layer(n), own = motionOf(n).text;\n                const eff = own || T;\n                if (!el || !on(eff)) return;\n                const sub = CGMotion.applyTextEffect(el, eff);\n                if (sub) tl.add(sub, own ? 0 : (TS ? Math.max(0, baseEnd - 0.1) : 0));\n            });\n        },\n        onHide() {\n        }\n    });\n    // Wyjście: najpierw OUT warstw (i ich efekty tekstu), potem OUT całego elementu z inspektora\n    const baseHide = root.__slt_hide;\n    root.__slt_hide = () => {\n        const TO = {{{TEXT_ANIM_OUT_JSON}}}, TOS = {{{TEXT_ANIM_OUT_SYNC}}};\n        const pre = gsap.timeline(), par = gsap.timeline();\n        motions.forEach(m => {\n            const el = layer(m.n);\n            if (el && on(m.out)) pre.add(CGMotion.standardOut(el, m.out), 0);\n        });\n        textNs.forEach(n => {\n            const el = layer(n), own = motionOf(n).textOut;\n            const eff = own || TO;\n            if (!el || !on(eff)) return;\n            const sub = CGMotion.applyTextOutEffect(el, eff);\n            if (!sub) return;\n            if (own) pre.add(sub, 0); else par.add(sub, 0);\n        });\n        const base = baseHide();\n        const tl = gsap.timeline();\n        tl.add(pre);\n        if (TOS) { tl.add(par); tl.add(base, '>-0.1'); }\n        else { tl.add(base); tl.add(par, '<'); }\n        return tl;\n    };\n})();\n",
+      "layout": {
+        "attachOffsetY": -160,
+        "attachedToGraphicId": [
+          "btb-fullwidth-ticker-01",
+          "trio-1792006912239",
+          "trio-1792007687225"
+        ],
+        "height": 51.0,
+        "layer": 1.0,
+        "marginX": 0.0,
+        "marginY": 0.0,
+        "scale": 1.0,
+        "side": "custom",
+        "width": 340.0,
+        "x": 219.89999389648438,
+        "y": 929.7999877929688
+      },
+      "name": "WYDANIE SPECJALNE",
+      "ocgInputs": [
+        {
+          "default": "WYDANIE SPECJALNE",
+          "id": "TITLE",
+          "label": "TITLE — b",
+          "type": "text"
+        }
+      ],
+      "scene": {
+        "detached": false,
+        "frame": {
+          "h": 51.0,
+          "w": 340.0
+        },
+        "layers": [
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 160.0,
+              "color": "rgb(185, 28, 28)",
+              "color2": "rgb(122, 0, 0)",
+              "type": "gradient"
+            },
+            "h": 51.0,
+            "id": "sh1",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — na-zywo-wrapper",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 340.0,
+            "x": 0.0,
+            "y": 0.0
+          },
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 160.0,
+              "color": "rgb(185, 28, 28)",
+              "color2": "rgb(122, 0, 0)",
+              "type": "gradient"
+            },
+            "h": 51.0,
+            "id": "sh2",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — na-zywo-container",
+            "opacity": 1.0,
+            "radius": 10.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 340.0,
+            "x": 0.0,
+            "y": 0.0
+          },
+          {
+            "effect": "none",
+            "fill": {
+              "angle": 90.0,
+              "color": "rgb(255, 255, 255)",
+              "color2": "",
+              "type": "solid"
+            },
+            "h": 14.0,
+            "id": "sh3",
+            "locked": false,
+            "motion": {},
+            "name": "Kształt — na-zywo-dot",
+            "opacity": 1.0,
+            "radius": 7.0,
+            "rotation": 0.0,
+            "shadow": false,
+            "skew": 0.0,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 0.0
+            },
+            "type": "shape",
+            "visible": true,
+            "w": 14.0,
+            "x": 16.100000381469727,
+            "y": 18.5
+          },
+          {
+            "defaultText": "WYDANIE SPECJALNE",
+            "field": "TITLE",
+            "font": {
+              "align": "left",
+              "color": "rgb(255, 255, 255)",
+              "family": "Bahnschrift",
+              "italic": false,
+              "letterSpacing": 1.0,
+              "lineHeight": 1.399999976158142,
+              "shadow": "none",
+              "size": 24.0,
+              "transform": "uppercase",
+              "valign": "middle",
+              "weight": "700"
+            },
+            "h": 26.0,
+            "id": "tx4",
+            "locked": false,
+            "motion": {},
+            "name": "TITLE — b",
+            "opacity": 1.0,
+            "rotation": 0.0,
+            "skew": 0.0,
+            "squash": true,
+            "text": "",
+            "type": "text",
+            "visible": true,
+            "w": 281.70001220703125,
+            "x": 42.099998474121094,
+            "y": 12.199999809265137
+          }
+        ],
+        "version": 1
+      },
+      "speed": 100,
+      "squashing": false,
+      "style": {
+        "background": {
+          "borderColor": "#ffffff",
+          "borderRadius": 10,
+          "borderWidth": 0,
+          "color": "#b91c1c",
+          "color2": "#7a0000",
+          "gradientAngle": 160,
+          "opacity": 1,
+          "subtitleBackgroundColor": "#000000",
+          "type": "gradient"
+        },
+        "subtitleTypography": {
+          "color": "#eeeeee",
+          "fontFamily": "Inter",
+          "fontSize": 20,
+          "fontWeight": "normal"
+        },
+        "typography": {
+          "color": "#ffffff",
+          "fontFamily": "Arial",
+          "fontSize": 24,
+          "fontWeight": "bold"
+        }
+      },
+      "subtitle": "BIAŁYSTOK",
+      "title": "WYDANIE SPECJALNE",
+      "titleHtml": "<span style=\"font-family: Bahnschrift;\"><b>WYDANIE SPECJALNE</b></span>",
+      "type": "BADGE",
+      "variant": "custom",
+      "version": 1,
+      "visible": false
+    }
+  ]
+}
