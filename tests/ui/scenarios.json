@@ -1,7 +1,7 @@
 {
   "fixture": "tests/ui/fixture.json",
   "ignore_bottom": 30,
-  "tolerance": { "pixel": 24, "max_diff_ratio": 0.002 },
+  "tolerance": { "pixel": 24, "max_diff_ratio": 0.0001 },
   "scenarios": [
     { "name": "idle",         "args": ["--frames", "20"] },
     { "name": "hold",         "args": ["--frames", "25", "--phase", "hold:0.3"] },
