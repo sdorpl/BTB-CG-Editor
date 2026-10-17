@@ -89,6 +89,10 @@ Stan faz: 0–6 zrobione (rdzeń, most, odtwarzacz, WASM, strona wyjściowa, zgo
 - **Reguła jest w czterech miejscach — zmieniaj je naraz:** `scene-model.js` w BTB-CG (`fitSpec`/`fitRun`), `compile.rs` (`fit_spec`/`FIT_RUN`, bajt w bajt; test `compile_fit_text_matches_btb_cg_scene_model`), `assets/btb-motion-player.js` (`P.fit`, spec w `BTB_CONFIG.fit`), podgląd egui `render::fit_adjust`/`text_width`. Pomiar w przeglądarce: `offsetWidth` przy `width:max-content; flex:none` (bez `flex:none` `.cg-t` z `overflow:hidden` kurczy się do pudełka).
 - Test w przeglądarce: `node tools/e2e-fit.js` (`make check` go uruchamia razem z e2e).
 
+## Artefakt `motion` (M2.1)
+
+`compile::apply_to_element` woła `refresh_motion`: element z kluczami/ścieżką dostaje w `extra["motion"]` wynik `motion_page::artifact` (`{ version, director, tickers, squash, fit }`), inne go tracą. To dane dla runtime'u WASM w BTB-CG (plan M2: `docs/plans/M2-runtime-wasm.md`). Zmiana kształtu = podniesienie `MOTION_VERSION` i zmiana walidacji w `editor-io.js` BTB-CG.
+
 ## Konwersje: presety na klucze, import ręcznych szablonów
 
 - **Presety → klucze** (`keyconv::convert_presets`, przycisk „Presety na klucze” na osi czasu i menu elementu/warstwy): krzywe są dopasowywane kilkoma kluczami z uchwytami Béziera (`Channel::fit`, tolerancja min(0,15% zakresu, 0,6 px / 0,15° / 0,4%)), IN i OUT sklejane w jeden kanał z `Hold` na przeskokach stanu; klucze elementu leżą w `Scene.keys` (cel `"element"`). Po konwersji preset = `none`, a Stop zostaje (`stopAt`); OUT elementu `none` nie chowa elementu, gdy ma on klucze. Pętle i efekty tekstowe zostają presetami. Test zgodności: `keyconv::tests` (macierz typów) oraz porównanie strony z kluczami z GSAP oryginału (`<nazwa>.converted.json` w zestawach `e2e*`).

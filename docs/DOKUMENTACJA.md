@@ -152,6 +152,8 @@ rośnie o największe przesunięcie prawego brzegu; pozycja ramki na wizji (`lay
 
 ## 6. Eksport i integracje
 
+Element z kluczami lub ścieżką ruchu dostaje przy każdej kompilacji pole `motion` (`{ version: 1, director, tickers, squash, fit }`; `motion_page::artifact`) — BTB-CG gra go runtime'em WASM zamiast `CGMotion` (plan M2). Element bez kluczy/ścieżki nie ma `motion` i gra z kodu jak dotąd.
+
 | Funkcja | Jak |
 |---|---|
 | Grafika z pliku | Panel warstw → „Obraz z pliku…”, Plik → Dodaj obraz z pliku…, albo „Wybierz plik…” w zakładce Właściwości warstwy obrazu. Formaty: PNG, JPEG, WebP, GIF, BMP, SVG (typ rozpoznawany po zawartości). Plik jest **osadzany** w elemencie jako `data:` URI (element jest samowystarczalny, działa w OBS bez dostępu do dysku); limit 12 MB, ostrzeżenie powyżej 2 MB. Nowa warstwa dostaje rozmiar obrazu wpasowany w 80% ramki i nazwę pliku; oryginalna nazwa jest w polu `srcName`. Serwer BTB-CG przy wysyłce sam przenosi osadzone obrazy do `uploads/` |

@@ -470,6 +470,16 @@ pub fn apply_to_element(el: &mut Element, mut scene: Scene) {
     el.layout.width = Some(scene.frame.w);
     el.layout.height = Some(scene.frame.h);
     el.scene = Some(scene);
+    refresh_motion(el);
+}
+
+/// Artefakt `motion` (M2.1): dla elementów z kluczami/ścieżką trafia do `element.motion`, żeby BTB-CG mógł zagrać go
+/// runtime'em WASM (`crate::motion_page::artifact`); dla pozostałych jest usuwany (grają przez `CGMotion` z kodu).
+pub fn refresh_motion(el: &mut Element) {
+    match crate::motion_page::artifact(el) {
+        Some(m) => { el.extra.insert("motion".into(), m); }
+        None => { el.extra.remove("motion"); }
+    }
 }
 
 /// Re-runs the compiler on the element's current scene (after any scene edit).

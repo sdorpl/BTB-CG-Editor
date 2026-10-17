@@ -53,6 +53,24 @@ pub fn config(el: &Element, manual: bool) -> Result<Value, String> {
     }))
 }
 
+/// Wersja kontraktu `element.motion` (docs/edytor-kontrakt.md w BTB-CG, M2.1).
+pub const MOTION_VERSION: u32 = 1;
+
+/// Dane dla runtime'u WASM po stronie BTB-CG: `{ version, director, tickers, squash, fit }`. `None`, gdy element nie ma
+/// kluczy ani ścieżki (gra przez `CGMotion`) albo nie da się go zbudować. HTML/CSS/dane nie są częścią artefaktu —
+/// BTB-CG renderuje je własnym rendererem, a odtwarzacz tylko animuje warstwy `[data-layer]`.
+pub fn artifact(el: &Element) -> Option<Value> {
+    if !motion_bridge::uses_keys(el) { return None; }
+    let cfg = config(el, false).ok()?;
+    Some(json!({
+        "version": MOTION_VERSION,
+        "director": cfg["director"],
+        "tickers": cfg["tickers"],
+        "squash": cfg["squash"],
+        "fit": cfg["fit"],
+    }))
+}
+
 pub fn build_html(el: &Element, manual: bool) -> Result<String, String> {
     let mut cfg = config(el, manual)?;
     cfg["wasm"] = Value::String(base64::engine::general_purpose::STANDARD.encode(WASM));
@@ -250,5 +268,24 @@ mod tests {
         assert!(!html.contains("gsap") && !html.contains("{{ID}}"));
         assert!(html.len() > 300_000);
         assert!(build_html(&Element { scene: None, ..el }, true).is_err());
+    }
+
+    #[test]
+    fn artifact_only_for_keyed_elements() {
+        let mut el = Element::new_typed("plain", "BADGE");
+        crate::compile::recompile(&mut el);
+        assert!(artifact(&el).is_none() && !el.extra.contains_key("motion"));
+        let key = |t: f32, v: f32| btb_motion::Key::linear(t, v);
+        let mut c = btb_motion::Channel::new("tx");
+        c.keys = vec![key(0.0, 0.0), key(1.0, 50.0)];
+        if let Some(s) = el.scene.as_mut() { if let Some(l) = s.layers.first_mut() { l.keys = vec![c]; } }
+        crate::compile::recompile(&mut el);
+        let m = el.extra.get("motion").expect("motion po recompile");
+        assert_eq!(m["version"], MOTION_VERSION);
+        assert!(m["director"].is_object() && m.get("tickers").is_some());
+        // klucze usunięte → artefakt znika
+        if let Some(s) = el.scene.as_mut() { for l in s.layers.iter_mut() { l.keys.clear(); } }
+        crate::compile::recompile(&mut el);
+        assert!(!el.extra.contains_key("motion"));
     }
 }
