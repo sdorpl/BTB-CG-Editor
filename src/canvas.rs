@@ -636,6 +636,7 @@ mod tests {
         selected: Vec<String>,
         time: f64,
         alt: bool,
+        shift: bool,
     }
 
     impl C {
@@ -650,7 +651,7 @@ mod tests {
             st.zoom = 0.6;
             st.needs_fit = false;
             st.path_sel = Some(1);
-            let mut c = Self { ctx: egui::Context::default(), st, el, selected: vec![id], time: 0.0, alt: false };
+            let mut c = Self { ctx: egui::Context::default(), st, el, selected: vec![id], time: 0.0, alt: false, shift: false };
             crate::app::setup_fonts(&c.ctx);
             c.frame(vec![]);
             c.frame(vec![]);
@@ -663,6 +664,7 @@ mod tests {
             raw.time = Some(self.time);
             raw.events = events;
             raw.modifiers.alt = self.alt;
+            raw.modifiers.shift = self.shift;
             let Self { ctx, st, el, selected, .. } = self;
             let fx = std::collections::HashMap::new();
             let title = el.title.clone();
@@ -743,5 +745,186 @@ mod tests {
         c.frame(vec![Event::PointerButton { pos: kp, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::default() }]);
         assert_eq!(c.st.path_sel, Some(0));
         assert_eq!(c.selected.len(), 1, "zaznaczenie warstw bez zmian");
+    }
+
+    // ── testy zachowania narzędzi na warstwie bez ścieżki (zabezpieczają refaktor) ──
+
+    impl C {
+        /// Jedna warstwa bez ścieżki, zaznaczona; przyciąganie wyłączone dla deterministycznych wyników.
+        fn plain() -> Self {
+            let mut c = Self::new();
+            {
+                let sc = c.el.scene.as_mut().unwrap();
+                sc.layers.truncate(1);
+                sc.layers[0].path = None;
+            }
+            c.st.snap = false;
+            c.st.path_sel = None;
+            c.frame(vec![]);
+            c.frame(vec![]);
+            c
+        }
+        fn layer(&self) -> Layer { self.el.scene.as_ref().unwrap().layers[0].clone() }
+        fn fo(&self) -> (f32, f32) {
+            let f = &self.el.scene.as_ref().unwrap().frame;
+            self.el.layout.frame_origin(f.w, f.h)
+        }
+        /// Punkt we współrzędnych ramki -> ekran.
+        fn screen(&self, x: f32, y: f32) -> Pos2 {
+            let fo = self.fo();
+            self.st.last_rect.min + self.st.pan + Vec2::new(fo.0 + x, fo.1 + y) * self.st.zoom
+        }
+        fn press_release(&mut self, p: Pos2) {
+            self.frame(vec![Event::PointerMoved(p)]);
+            self.frame(vec![Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::default() }]);
+            self.frame(vec![Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::default() }]);
+            self.frame(vec![]);
+        }
+    }
+
+    #[test]
+    fn dragging_a_layer_moves_it_by_the_pointer_delta() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        let from = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        let d = Vec2::new(60.0, 30.0);
+        c.drag(from, from + d);
+        let l = c.layer();
+        assert!((l.x - l0.x - (d.x / c.st.zoom).round()).abs() <= 1.0, "x: {} -> {}", l0.x, l.x);
+        assert!((l.y - l0.y - (d.y / c.st.zoom).round()).abs() <= 1.0, "y: {} -> {}", l0.y, l.y);
+        assert_eq!((l.w, l.h), (l0.w, l0.h));
+    }
+
+    #[test]
+    fn shift_locks_the_move_axis() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        let from = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        c.shift = true;
+        c.drag(from, from + Vec2::new(80.0, 20.0));
+        c.shift = false;
+        let l = c.layer();
+        assert!(l.x > l0.x + 20.0);
+        assert_eq!(l.y, l0.y, "dominująca oś X, Y bez zmiany");
+    }
+
+    #[test]
+    fn snapping_pulls_the_layer_to_frame_edges() {
+        let mut c = C::plain();
+        c.st.snap = true;
+        let l0 = c.layer();
+        let from = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        // lewa krawędź warstwy kilka pikseli od 0 ramki: przyciągnięcie do 0
+        let target_x = 3.0;
+        let d = Vec2::new((target_x - l0.x) * c.st.zoom, 0.0);
+        c.drag(from, from + d);
+        assert_eq!(c.layer().x, 0.0);
+    }
+
+    #[test]
+    fn resizing_from_the_corner_handle_grows_the_layer() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        let corner = c.screen(l0.x + l0.w, l0.y + l0.h);
+        let d = Vec2::new(30.0, 24.0);
+        c.drag(corner, corner + d);
+        let l = c.layer();
+        assert!((l.w - l0.w - (d.x / c.st.zoom).round()).abs() <= 1.0, "w: {} -> {}", l0.w, l.w);
+        assert!((l.h - l0.h - (d.y / c.st.zoom).round()).abs() <= 1.0, "h: {} -> {}", l0.h, l.h);
+        assert_eq!((l.x, l.y), (l0.x, l0.y), "przeciwległy róg stoi w miejscu");
+    }
+
+    #[test]
+    fn shift_keeps_the_aspect_ratio_on_corner_resize() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        let corner = c.screen(l0.x + l0.w, l0.y + l0.h);
+        c.shift = true;
+        c.drag(corner, corner + Vec2::new(60.0, 5.0));
+        c.shift = false;
+        let l = c.layer();
+        assert!((l.w / l.h - l0.w / l0.h).abs() < 0.1, "{}x{} vs {}x{}", l.w, l.h, l0.w, l0.h);
+    }
+
+    #[test]
+    fn the_rotate_handle_turns_the_layer_around_its_center() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        let ctr = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        let top = c.screen(l0.x + l0.w / 2.0, l0.y);
+        let handle = top + Vec2::new(0.0, -26.0);
+        // z góry na prawo od środka = +90°
+        c.drag(handle, ctr + Vec2::new(150.0, 0.0));
+        let r = c.layer().rotation;
+        assert!((r - 90.0).abs() < 1.0, "rotation = {r}");
+        let l = c.layer();
+        assert_eq!((l.x, l.y, l.w, l.h), (l0.x, l0.y, l0.w, l0.h));
+    }
+
+    #[test]
+    fn marquee_selects_intersecting_layers_and_clears_when_empty() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        c.selected.clear();
+        // start w pustym miejscu pola, koniec wewnątrz warstwy
+        let start = c.st.last_rect.min + c.st.pan + Vec2::new(4.0, 4.0);
+        let inside = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        c.drag(start, inside);
+        assert_eq!(c.selected, vec![l0.id.clone()]);
+        // mały prostokąt w pustym rogu nic nie zaznacza
+        let a = c.st.last_rect.min + c.st.pan + Vec2::new(4.0, 4.0);
+        c.drag(a, a + Vec2::new(10.0, 10.0));
+        assert!(c.selected.is_empty());
+    }
+
+    #[test]
+    fn clicking_selects_a_layer_and_empty_space_clears() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        c.selected.clear();
+        c.press_release(c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0));
+        assert_eq!(c.selected, vec![l0.id.clone()]);
+        c.press_release(c.st.last_rect.min + c.st.pan + Vec2::new(4.0, 4.0));
+        assert!(c.selected.is_empty());
+    }
+
+    #[test]
+    fn locked_layers_do_not_move() {
+        let mut c = C::plain();
+        c.el.scene.as_mut().unwrap().layers[0].locked = true;
+        let l0 = c.layer();
+        let from = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        c.drag(from, from + Vec2::new(60.0, 30.0));
+        let l = c.layer();
+        assert_eq!((l.x, l.y), (l0.x, l0.y));
+    }
+
+    #[test]
+    fn wheel_zoom_keeps_the_point_under_the_cursor() {
+        let mut c = C::plain();
+        let p = c.st.last_rect.center();
+        let field_before = (p - c.st.last_rect.min - c.st.pan) / c.st.zoom;
+        let z0 = c.st.zoom;
+        c.frame(vec![Event::PointerMoved(p)]);
+        for _ in 0..6 {
+            c.frame(vec![Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta: Vec2::new(0.0, 40.0), modifiers: Modifiers::default() }]);
+        }
+        for _ in 0..10 { c.frame(vec![]); }
+        assert!(c.st.zoom > z0, "zoom {} -> {}", z0, c.st.zoom);
+        let field_after = (p - c.st.last_rect.min - c.st.pan) / c.st.zoom;
+        assert!((field_after - field_before).length() < 1.0, "{field_before:?} vs {field_after:?}");
+    }
+
+    #[test]
+    fn fit_field_and_fit_frame_center_the_view() {
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1000.0, 600.0));
+        let mut st = CanvasState::default();
+        st.fit_field(rect);
+        assert!((st.zoom - 1000.0 / FIELD_W * 0.96).abs() < 1e-4);
+        let center = Pos2::ZERO + st.pan + Vec2::new(FIELD_W, FIELD_H) * st.zoom / 2.0;
+        assert!((center - rect.center()).length() < 1.0);
+        st.fit_frame(rect, (100.0, 100.0), (400.0, 200.0));
+        let c2 = Pos2::ZERO + st.pan + Vec2::new(300.0, 200.0) * st.zoom;
+        assert!((c2 - rect.center()).length() < 1.0);
     }
 }
