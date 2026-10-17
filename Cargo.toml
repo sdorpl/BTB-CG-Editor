@@ -1,0 +1,37 @@
+[package]
+name = "btb-cgeditor"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = ["btb-motion", "btb-motion-wasm"]
+exclude = ["reference"]
+
+[[bin]]
+name = "btb-cgeditor"
+path = "src/main.rs"
+
+[dependencies]
+btb-motion = { path = "btb-motion" }
+eframe = { version = "0.29", features = ["default"] }
+egui = "0.29"
+egui_extras = { version = "0.29", features = ["all_loaders"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+ureq = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+rfd = "0.15"
+base64 = "0.22"
+
+[profile.release]
+opt-level = 3
+lto = true
+
+# Testy zgodności wypiekają tysiące krzywych; silnik jest bez zależności od egui, więc optymalizacja jest tania.
+[profile.dev.package.btb-motion]
+opt-level = 3
+[profile.test.package.btb-motion]
+opt-level = 3

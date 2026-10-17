@@ -1,0 +1,60 @@
+{
+  // Wymaga rozszerzenia CodeLLDB (vadimcn.vscode-lldb).
+  // Binarka leży w target-dir z .cargo/config.toml (/tmp/btb-cgeditor-target).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug btb-cgeditor",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/tmp/btb-cgeditor-target/debug/btb-cgeditor",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build"
+    },
+    {
+      "name": "Debug btb-cgeditor (silnik btb-motion)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/tmp/btb-cgeditor-target/debug/btb-cgeditor",
+      "args": [],
+      "env": { "BTB_ENGINE": "motion" },
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build"
+    },
+    {
+      "name": "Debug btb-cgeditor: otwórz plik",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/tmp/btb-cgeditor-target/debug/btb-cgeditor",
+      "args": ["--open", "${input:elementFile}"],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build"
+    },
+    {
+      "name": "Debug btb-cgeditor (btb-motion bez optymalizacji)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/tmp/btb-cgeditor-target/debug/btb-cgeditor",
+      "args": [],
+      "env": { "BTB_ENGINE": "motion" },
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build (btb-motion bez optymalizacji)"
+    },
+    {
+      "name": "Debug testy (cargo test --workspace)",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": { "args": ["test", "--workspace", "--no-run"] },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "elementFile",
+      "type": "promptString",
+      "description": "Ścieżka do pliku elementu .json"
+    }
+  ]
+}

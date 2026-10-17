@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=BTB CGEditor
+Comment=Edytor grafiki telewizyjnej (CG) dla OBS
+Exec=btb-cgeditor
+Icon=btb-cgeditor
+Categories=AudioVideo;Video;Graphics;
+Terminal=false

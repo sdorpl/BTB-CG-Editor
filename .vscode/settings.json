@@ -1,0 +1,4 @@
+{
+  "rust-analyzer.cargo.targetDir": "/tmp/btb-cgeditor-target-ra",
+  "lldb.dbgconfig": { "sourceLanguages": ["rust"] }
+}

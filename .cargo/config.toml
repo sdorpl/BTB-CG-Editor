@@ -1,0 +1,5 @@
+[build]
+# Nextcloud sync folders can block executing build-script binaries
+# (observed: "Permission denied" running build-script-build for proc-macro
+# crates like quote/libc). Building outside the synced tree avoids this.
+target-dir = "/tmp/btb-cgeditor-target"
