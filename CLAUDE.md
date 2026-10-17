@@ -67,7 +67,7 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 - Akceleracja sprzętowa okna (`src/gpu.rs`): `--gpu auto|on|off` (`BTB_GPU`; auto = GPU z awaryjnym programowym, on = wymagane, off = programowo) i `--renderer glow|wgpu` (`BTB_RENDERER`; domyślnie glow/OpenGL, wgpu = Vulkan/Metal/DX12). CLI ma pierwszeństwo przed zmienną. Tryb `--gpu` działa dla glow; wgpu zawsze wybiera adapter o wysokiej wydajności.
 - Testy wizualne UI: `make ui-shots` (`tools/ui-shots.py`): scenariusze z `tests/ui/scenarios.json` na `tests/ui/fixture.json`, porównanie ze wzorcami `tests/ui/golden/*.png` (`--update` odświeża). Wymaga wyświetlacza i Pillow, nie wchodzi do `make check`; wzorce zależą od maszyny/czcionek.
 - Podgląd silnikiem btb-motion w edytorze: `BTB_ENGINE=motion btb-cgeditor`.
-- `target-dir` jest ustawiony w `.cargo/config.toml` na `/tmp/btb-cgeditor-target` (Nextcloud blokuje uruchamianie binarek build-script w synchronizowanym drzewie). Nie zmieniaj tego.
+- `target-dir` jest ustawiony w `.cargo/config.toml` na `/home/maciej/.cache/btb-cgeditor-target` (Nextcloud blokuje uruchamianie binarek build-script w synchronizowanym drzewie). Katalog musi leżeć poza Nextcloud, ale nie w `/tmp` (tmpfs = RAM, target ma kilka GB) — dlatego `~/.cache`. Nie zmieniaj tego.
 - Testy macierzy zgodności trwają ok. 75 s w debugu; `btb-motion` jest kompilowany z `opt-level = 3` także w dev/test.
 
 ## Zasady silnika `btb-motion` (z `docs/PLAN-btb-motion.md`)
