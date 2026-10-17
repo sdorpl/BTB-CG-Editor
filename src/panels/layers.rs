@@ -41,13 +41,23 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
                     if ui.selectable_label(false, if l.locked { "🔒" } else { "🔓" }).on_hover_text(tr("layers.lock")).clicked() { l.locked = !l.locked; }
                     let name_w = (ui.available_width() - 4.0 * 26.0).max(40.0);
                     let label = format!("{} {}", l.layer_type.icon(), if l.name.is_empty() { l.layer_type.label() } else { &l.name });
-                    let clicked = ui
-                        .allocate_ui_with_layout(egui::vec2(name_w, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
-                            ui.add(egui::SelectableLabel::new(is_sel, RichText::new(label).color(if l.visible { Color32::from_gray(225) } else { Color32::from_gray(110) })))
-                        })
-                        .inner
-                        .clicked();
+                    let rename_id = egui::Id::new("rename_layer");
+                    let renaming = ui.data(|d| d.get_temp::<String>(rename_id)).is_some_and(|r| r == id);
+                    let (clicked, dbl) = if renaming {
+                        let r = ui.add(egui::TextEdit::singleline(&mut l.name).desired_width(name_w));
+                        if !r.has_focus() && !r.gained_focus() { r.request_focus(); }
+                        if r.lost_focus() { ui.data_mut(|d| d.remove::<String>(rename_id)); }
+                        (false, false)
+                    } else {
+                        let r = ui
+                            .allocate_ui_with_layout(egui::vec2(name_w, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                                ui.add(egui::SelectableLabel::new(is_sel, RichText::new(label).color(if l.visible { Color32::from_gray(225) } else { Color32::from_gray(110) })))
+                            })
+                            .inner;
+                        (r.clicked(), r.double_clicked())
+                    };
+                    if dbl { ui.data_mut(|d| d.insert_temp(rename_id, id.clone())); }
                     if clicked {
                         let (ctrl, shift) = ui.input(|i| (i.modifiers.command, i.modifiers.shift));
                         if shift && last_clicked.is_some() {

@@ -438,7 +438,7 @@ pub fn fallback_for(ty: &str) -> Option<&'static str> {
 /// Keep `extra["fallback"]` in sync with the chosen type (set for new types, removed otherwise).
 pub fn sync_fallback(extra: &mut crate::model::Extra, ty: &str) {
     match fallback_for(ty) {
-        Some(f) => { extra.insert("fallback".into(), serde_json::Value::from(f)); }
+        Some(f) => { if extra.get("fallback").and_then(|v| v.as_str()) != Some(f) { extra.insert("fallback".into(), serde_json::Value::from(f)); } }
         None => { extra.remove("fallback"); }
     }
 }

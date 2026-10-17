@@ -92,6 +92,9 @@ pub struct SceneParamsBuilder<'a> {
 
 /// Jedna klatka kanwy: nawigacja, interakcja (gdy nie trwa edycja tekstu ani odtwarzanie), potem rysowanie warstwami
 /// od spodu: pole, ramka, scena, prowadnice, zaznaczenie, ścieżka, ramka zaznaczenia, edycja tekstu, pasek, etykiety.
+/// Prostokąt otaczający warstwę po obrocie (współrzędne ramki): (min_x, min_y, max_x, max_y).
+pub fn layer_frame_bbox(l: &crate::model::Layer, frame: (f32, f32)) -> (f32, f32, f32, f32) { hit::frame_bbox(l, frame) }
+
 pub fn draw_canvas(
     ui: &mut Ui,
     st: &mut CanvasState,
