@@ -349,6 +349,28 @@ mod tests {
     }
 
     #[test]
+    fn snapping_uses_the_rotated_bounding_box() {
+        let mut c = C::plain();
+        c.st.snap = true;
+        {
+            let l = &mut c.el.scene.as_mut().unwrap().layers[0];
+            l.w = 260.0;
+            l.h = 56.0;
+            l.rotation = 90.0;
+        }
+        c.frame(vec![]);
+        let l0 = c.layer();
+        let from = c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        // pudełko po obrocie ma szerokość 56 i środek w środku warstwy; jego lewa krawędź ma trafić w 0
+        let (bx0, _, _, _) = hit::frame_bbox(&l0, (c.el.scene.as_ref().unwrap().frame.w, c.el.scene.as_ref().unwrap().frame.h));
+        let d = Vec2::new((3.0 - bx0) * c.st.zoom, 0.0);
+        c.drag(from, from + d);
+        let l = c.layer();
+        let (nx0, _, _, _) = hit::frame_bbox(&l, (c.el.scene.as_ref().unwrap().frame.w, c.el.scene.as_ref().unwrap().frame.h));
+        assert!(nx0.abs() < 1.0, "lewa krawędź obróconego pudełka: {nx0}");
+    }
+
+    #[test]
     fn resizing_from_the_corner_handle_grows_the_layer() {
         let mut c = C::plain();
         let l0 = c.layer();

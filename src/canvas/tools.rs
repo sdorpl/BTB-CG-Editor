@@ -1,7 +1,7 @@
 //! Narzędzia edycji na kanwie: przesuwanie z przyciąganiem, skalowanie, obrót, ramka zaznaczenia i edycja ścieżki ruchu.
 //! `interact` rozpoznaje początek przeciągnięcia (kolejność: ścieżka, uchwyt skalowania, uchwyt obrotu, warstwa, ramka),
 //! aktualizuje aktywne narzędzie i obsługuje klik oraz dwuklik.
-use super::hit::{Geo, PathHit};
+use super::hit::{frame_bbox, Geo, PathHit};
 use super::{CanvasOut, CanvasState};
 use crate::model::{Layer, LayerType, Scene};
 use crate::render::Aff;
@@ -133,19 +133,23 @@ fn update(st: &mut CanvasState, geo: &Geo, scene: &mut Scene, selected: &mut Vec
 fn move_layers(st: &mut CanvasState, geo: &Geo, scene: &mut Scene, starts: &[(String, f32, f32)], mut d: Vec2, mods: Mods) {
     if mods.shift { if d.x.abs() > d.y.abs() { d.y = 0.0 } else { d.x = 0.0 } }
     if st.snap && !mods.alt {
+        // pudełko grupy po obrocie warstw, przesunięte o `d` względem pozycji startowych
         let (mut minx, mut miny, mut maxx, mut maxy) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
         for (id, sx, sy) in starts {
             if let Some(l) = scene.layers.iter().find(|l| &l.id == id) {
-                minx = minx.min(sx + d.x); miny = miny.min(sy + d.y);
-                maxx = maxx.max(sx + d.x + l.w); maxy = maxy.max(sy + d.y + l.h);
+                let (bx0, by0, bx1, by1) = frame_bbox(l, geo.frame);
+                let (ox, oy) = (sx + d.x - l.x, sy + d.y - l.y);
+                minx = minx.min(bx0 + ox); miny = miny.min(by0 + oy);
+                maxx = maxx.max(bx1 + ox); maxy = maxy.max(by1 + oy);
             }
         }
         let thr = 6.0 / st.zoom;
         let mut xs = vec![0.0, geo.frame.0 / 2.0, geo.frame.0];
         let mut ys = vec![0.0, geo.frame.1 / 2.0, geo.frame.1];
         for l in scene.layers.iter().filter(|l| l.visible && !starts.iter().any(|(id, _, _)| *id == l.id)) {
-            xs.extend([l.x, l.x + l.w / 2.0, l.x + l.w]);
-            ys.extend([l.y, l.y + l.h / 2.0, l.y + l.h]);
+            let (bx0, by0, bx1, by1) = frame_bbox(l, geo.frame);
+            xs.extend([bx0, (bx0 + bx1) / 2.0, bx1]);
+            ys.extend([by0, (by0 + by1) / 2.0, by1]);
         }
         if let Some((diff, line)) = nearest_snap([minx, (minx + maxx) / 2.0, maxx], &xs, thr) { d.x += diff; st.guides_x.push(line); }
         if let Some((diff, line)) = nearest_snap([miny, (miny + maxy) / 2.0, maxy], &ys, thr) { d.y += diff; st.guides_y.push(line); }

@@ -12,6 +12,13 @@ pub(super) fn static_aff(l: &Layer, frame: (f32, f32)) -> Aff {
     render::layer_to_field(l, (0.0, 0.0), frame, &d, &d)
 }
 
+/// Prostokąt otaczający warstwę po obrocie we współrzędnych ramki: (min_x, min_y, max_x, max_y).
+pub(super) fn frame_bbox(l: &Layer, frame: (f32, f32)) -> (f32, f32, f32, f32) {
+    let m = static_aff(l, frame);
+    let pts = [Pos2::ZERO, Pos2::new(l.w, 0.0), Pos2::new(l.w, l.h), Pos2::new(0.0, l.h)].map(|q| m.apply(q));
+    pts.iter().fold((f32::MAX, f32::MAX, f32::MIN, f32::MIN), |b, q| (b.0.min(q.x), b.1.min(q.y), b.2.max(q.x), b.3.max(q.y)))
+}
+
 fn contains_local(inv: &Aff, p: Pos2, l: &Layer) -> bool {
     let q = inv.apply(p);
     q.x >= 0.0 && q.y >= 0.0 && q.x <= l.w && q.y <= l.h
