@@ -351,7 +351,7 @@ impl CgEditorApp {
             Err(std::sync::mpsc::TryRecvError::Empty) => { ctx.request_repaint_after(std::time::Duration::from_millis(150)); return; }
             Err(_) => Err(tr("convert.aborted").into()),
         };
-        let job = self.import.conv.take().unwrap();
+        let Some(job) = self.import.conv.take() else { return };
         match res {
             Err(e) => { self.import.status = e.clone(); self.status = e; }
             Ok(list) => {
@@ -664,7 +664,8 @@ impl CgEditorApp {
             let extra = self.element.extra.clone();
             let base_url = self.base_url.clone();
             let values = Values { title: &title, fields: &fields, extra: &extra, base_url: &base_url };
-            let scene_snapshot = crate::links::resolve(self.element.scene.as_ref().unwrap(), &values);
+            let Some(scene_ref) = self.element.scene.as_ref() else { return };
+            let scene_snapshot = crate::links::resolve(scene_ref, &values);
             let plan = playback::plan(&self.element, &scene_snapshot, &values);
             let (elem_tr, fx) = if motion_bridge::enabled() || motion_bridge::uses_keys(&self.element) {
                 motion_bridge::evaluate(&self.playback, &self.element, &scene_snapshot, &values, &plan)
@@ -676,7 +677,7 @@ impl CgEditorApp {
             let fx: std::collections::HashMap<_, _> = fx.into_iter().map(|(k, mut v)| { v.tr = v.tr.map(|t| t.approx()); (k, v) }).collect();
             // zaznaczony klucz ścieżki: oś czasu jest źródłem prawdy, kanwa może go zmienić kliknięciem
             self.canvas.path_sel = self.timeline.sel.iter().find(|k| k.prop == timeline::PATH && self.selected.len() == 1 && self.selected[0] == k.layer).map(|k| k.idx);
-            let scene = self.element.scene.as_mut().unwrap();
+            let Some(scene) = self.element.scene.as_mut() else { return };
             let out = canvas::draw_canvas(ui, &mut self.canvas, scene, &mut self.element.layout, &mut self.selected, DrawInputs {
                 sp: SceneParamsBuilder { elem_tr, fx: &fx, values, time: ui.input(|i| i.time), playing: self.playback.active(), badge_squash: self.element.elem_type == "BADGE" },
             });

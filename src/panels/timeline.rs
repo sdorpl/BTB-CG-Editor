@@ -158,7 +158,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
     let inv = |u: f32| if u <= t_in { u } else if u < t_in + HOLD { t_in } else { u - HOLD };
 
     let (n_rows, layer_ids) = {
-        let scene = el.scene.as_ref().unwrap();
+        let Some(scene) = el.scene.as_ref() else { return };
         (1 + scene.keys.len() + scene.layers.iter().map(|l| 1 + l.keys.len() + usize::from(l.path.is_some())).sum::<usize>(), scene.layers.iter().rev().map(|l| l.id.clone()).collect::<Vec<_>>())
     };
     let height = 18.0 + n_rows as f32 * ROW_H + 4.0;
@@ -225,7 +225,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
 
         // wiersze warstw
         let mut y = y0 + ROW_H;
-        let scene = el.scene.as_ref().unwrap();
+        let Some(scene) = el.scene.as_ref() else { return };
         let mut key_drag_started: Option<(KeyRef, f32)> = None;
         let mut key_dragged_to: Option<f32> = None;
         let mut key_drag_stopped = false;
@@ -433,7 +433,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
             if let Some(d) = &tl.drag {
                 let snaps: Vec<_> = d.snaps.iter().map(|(l, pr, ch, idx)| (l.clone(), pr.clone(), ch.clone(), idx.clone())).collect();
                 let path_snaps: Vec<_> = d.path_snaps.iter().map(|(l, p, idx)| (l.clone(), p.clone(), idx.clone())).collect();
-                let scene = el.scene.as_mut().unwrap();
+                let Some(scene) = el.scene.as_mut() else { return };
                 let mut new_sel: Vec<KeyRef> = tl.sel.iter().filter(|s| if s.prop == PATH { !path_snaps.iter().any(|(l, _, _)| *l == s.layer) } else { !snaps.iter().any(|(l, pr, _, _)| *l == s.layer && *pr == s.prop) }).cloned().collect();
                 for (layer, snapshot, idx) in path_snaps {
                     let (moved, sel_idx) = snapshot.move_keys(&idx, dt);
@@ -465,7 +465,7 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
             tl.sel.clear();
         }
     }
-    let scene = el.scene.as_mut().unwrap();
+    let Some(scene) = el.scene.as_mut() else { return };
     for act in acts {
         match act {
             Act::SelectLayer(id) => *selected = vec![id],

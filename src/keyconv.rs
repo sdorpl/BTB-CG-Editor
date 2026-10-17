@@ -155,7 +155,7 @@ pub fn convert_presets(el: &mut Element, scope: Scope) -> Report {
         let out_tm = (!a.out.anim_type.is_empty() && !(a.out.anim_type == "none" && !scene.keys.is_empty())).then(|| Timing::from(&a.out));
         let chans = channels_for(in_tm.as_ref().map(|t| (t, true)), out_tm.as_ref().map(|t| (t, t_in + plan.base_out_start + OUT_EPS, true)));
         if !chans.is_empty() {
-            let sc = el.scene.as_mut().unwrap();
+            let Some(sc) = el.scene.as_mut() else { return report };
             for ch in chans {
                 if sc.keys.iter().any(|c| c.prop == ch.prop) { report.skipped.push(format!("element: {}", ch.prop)); continue; }
                 report.keys += ch.keys.len();
@@ -193,7 +193,7 @@ pub fn convert_presets(el: &mut Element, scope: Scope) -> Report {
         let in_tm = m_in.as_ref().map(Timing::from);
         let out_tm = m_out.as_ref().map(Timing::from);
         let chans = channels_for(in_tm.as_ref().map(|t| (t, false)), out_tm.as_ref().map(|t| (t, t_in + OUT_EPS, false)));
-        let sc = el.scene.as_mut().unwrap();
+        let Some(sc) = el.scene.as_mut() else { return report };
         let Some(layer) = sc.layers.iter_mut().find(|l| l.id == id) else { continue };
         let mut converted = false;
         for ch in chans {
@@ -216,7 +216,7 @@ pub fn convert_presets(el: &mut Element, scope: Scope) -> Report {
     if report.layers > 0 && !report.element && !el.animation.out.anim_type.is_empty() {
         let (title, fields, extra) = (el.title.clone(), el.fields.clone(), el.extra.clone());
         let values = Values { title: &title, fields: &fields, extra: &extra, base_url: "" };
-        let scene2 = el.scene.clone().unwrap();
+        let Some(scene2) = el.scene.clone() else { return report };
         let plan2 = playback::plan(el, &scene2, &values);
         let shift = plan.base_out_start - plan2.base_out_start;
         if shift > 1e-4 { el.animation.out.delay += shift; }

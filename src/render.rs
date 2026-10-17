@@ -680,7 +680,7 @@ fn sniff_ext(b: &[u8], url: &str) -> &'static str {
 fn remote_image_uri(ctx: &Context, url: &str) -> Result<String, Option<String>> {
     let id = egui::Id::new("btb_img_cache");
     let cache: ImgCache = ctx.data_mut(|d| d.get_temp::<ImgCache>(id).unwrap_or_else(|| { let c: ImgCache = Default::default(); d.insert_temp(id, c.clone()); c }));
-    let mut map = cache.lock().unwrap();
+    let mut map = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     match map.get(url).cloned() {
         Some(ImgState::Ready(u)) => Ok(u),
         Some(ImgState::Loading) => Err(None),
@@ -700,7 +700,7 @@ fn remote_image_uri(ctx: &Context, url: &str) -> Result<String, Option<String>> 
                     }
                     Err(e) => ImgState::Failed(e),
                 };
-                c2.lock().unwrap().insert(url2, st);
+                c2.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(url2, st);
                 ctx2.request_repaint();
             });
             Err(None)

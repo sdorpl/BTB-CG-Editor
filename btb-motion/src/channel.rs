@@ -258,7 +258,9 @@ impl Channel {
                 ch.keys.push(Key::linear(pts[idx].0, pts[idx].1));
             }
             if ri + 1 < runs.len() {
-                ch.keys.last_mut().unwrap().right = Handle::Hold;
+                if let Some(k) = ch.keys.last_mut() {
+                    k.right = Handle::Hold;
+                }
             }
         }
         ch
@@ -759,7 +761,9 @@ impl Channel {
             ch.keys.push(Key::linear(run[0].0, run[0].1));
             fit_run(run, eps, 0, &mut ch.keys);
             if ri + 1 < runs.len() {
-                ch.keys.last_mut().unwrap().right = Handle::Hold;
+                if let Some(k) = ch.keys.last_mut() {
+                    k.right = Handle::Hold;
+                }
             }
         }
         // skrajne uchwyty nie mają odcinka po zewnętrznej stronie

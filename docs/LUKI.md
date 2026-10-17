@@ -12,7 +12,7 @@ i wierność idą przed nowymi funkcjami.
 
 | # | Luka | Dowód / uwagi |
 |---|---|---|
-| 1 | Użycia `unwrap()`/`expect()` w kodzie nietestowym | po przeglądzie 2026-10-17 zostało ok. 22 trafień poza testami: `src/main.rs` (15, narzędzia CLI), `src/presets.rs` (7, warstwy budowane lokalnie ze stałych), `src/i18n.rs` (1, `panic!` przy uszkodzonych wkompilowanych tłumaczeniach). Usunięte: mutexy, `scene`, klucze, `frame` w stronie wyjściowej |
+| 1 | Użycia `unwrap()`/`expect()` w kodzie nietestowym | 2026-10-17: usunięto je na ścieżkach danych (render, motion_page, app, timeline, kanwa, keyconv, compile, channel, motion_bridge). Zostały: `src/main.rs` (15, narzędzia CLI), `src/presets.rs` (7, stałe presety), `src/i18n.rs` (1, wkompilowany JSON) |
 | 2 | Brak ostatniej linii obrony (`catch_unwind` przy otwieraniu, imporcie, eksporcie i zapisie) | zaprojektować: panika → komunikat i zachowanie dokumentu |
 | 3 | Brak lintów `clippy::unwrap_used` itd. | dodać `#![deny(...)]` do czystych modułów, nowe moduły startują z nim; `make lint` obejmuje tylko `btb-motion*` |
 | 4 | Granica WASM (`btb-motion-wasm`) | `unsafe extern "C"` przyjmuje wskaźniki i długości z hosta; dodać walidację i testy złośliwych danych |
@@ -27,6 +27,7 @@ i wierność idą przed nowymi funkcjami.
 | 8 | Podgląd egui przybliża efekty tekstowe i maski (`Transform::approx`) | dokładny wygląd daje strona wyjściowa |
 | 9 | Auto-szerokość po imporcie: elementy mają stały rozmiar tła | 57–84% zgodnych pikseli przy `DYN=…`; wymaga zmiany modelu współdzielonego z BTB-CG |
 | 10 | Layout (`side`, `margin`, `scale`, `rotation`) bez porównania z `renderer.js` | dodać test zgodności |
+| 28 | E2E `graphic_drop_rotate` przekracza próg pozycji (5,3 px przy progu 3 px) | `make e2e` czerwone także bez zmian z 2026-10-17; `make check` nie przechodzi do końca |
 | 11 | Klucze i ścieżka bez odpowiednika GSAP/`compile.rs` | działają tylko na stronie z WASM; testy `tools/e2e-gsap-compare.js` je pomijają |
 
 ## G3. Praca z plikami

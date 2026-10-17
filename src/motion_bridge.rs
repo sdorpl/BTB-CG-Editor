@@ -261,9 +261,10 @@ pub fn evaluate(pb: &Playback, el: &Element, scene: &Scene, values: &Values, pla
     let tr = CACHE.with(|c| {
         let mut c = c.borrow_mut();
         if c.as_ref().map(|x| x.key != key).unwrap_or(true) {
-            *c = Some(Cached { key, dir: build(el, scene, plan) });
+            *c = None;
         }
-        sample_phase(&c.as_ref().unwrap().dir, plan, pb.phase, pb.t, pb.loop_t)
+        let cached = c.get_or_insert_with(|| Cached { key, dir: build(el, scene, plan) });
+        sample_phase(&cached.dir, plan, pb.phase, pb.t, pb.loop_t)
     });
     // bez próbek elementu (brak animacji) obowiązuje ta sama zasada punktu odniesienia co w playback::evaluate
     elem_tr = tr.get(ELEMENT).copied().unwrap_or_else(|| elem(Transform::default()));

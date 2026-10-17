@@ -55,7 +55,8 @@ pub fn build_html(el: &Element, manual: bool) -> Result<String, String> {
     cfg["wasm"] = Value::String(base64::engine::general_purpose::STANDARD.encode(WASM));
     let f = &cfg["frame"];
     let op = el.layout.opacity;
-    let (fw, fh, x, y, sc, rot) = (f["w"].as_f64().unwrap(), f["h"].as_f64().unwrap(), f["x"].as_f64().unwrap(), f["y"].as_f64().unwrap(), f["scale"].as_f64().unwrap(), f["rotation"].as_f64().unwrap());
+    let num = |k: &str| f[k].as_f64().ok_or_else(|| format!("frame.{k}: brak liczby"));
+    let (fw, fh, x, y, sc, rot) = (num("w")?, num("h")?, num("x")?, num("y")?, num("scale")?, num("rotation")?);
     let css = cfg["css"].as_str().unwrap_or("").to_string();
     let json = serde_json::to_string(&cfg).map_err(|e| e.to_string())?;
     Ok(TEMPLATE

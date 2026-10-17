@@ -93,11 +93,9 @@ fn begin(st: &mut CanvasState, geo: &Geo, scene: &Scene, layout: &Layout, select
             PathHit::Key(i) => { st.path_sel = Some(i); st.path_picked = Some((l.id.clone(), i)); st.drag = Some(Drag::PathKey { layer: l.id.clone(), idx: i }); }
             PathHit::Handle(i, out) => st.drag = Some(Drag::PathHandle { layer: l.id.clone(), idx: i, out }),
         }
-    } else if let Some(h) = geo.pick_handle(p) {
-        let l = geo.single.as_ref().unwrap();
+    } else if let (Some(h), Some(l)) = (geo.pick_handle(p), geo.single.as_ref()) {
         st.drag = Some(Drag::Resize { id: l.id.clone(), handle: h, orig: (l.x, l.y, l.w, l.h), rot: l.rotation });
-    } else if geo.pick_rotate(p) {
-        let l = geo.single.as_ref().unwrap();
+    } else if let (true, Some(l)) = (geo.pick_rotate(p), geo.single.as_ref()) {
         let a = (p - geo.center_screen(l)).angle().to_degrees();
         st.drag = Some(Drag::Rotate { id: l.id.clone(), start_angle: a, start_rot: l.rotation });
     } else if let Some(id) = geo.hit_layer(p, scene) {

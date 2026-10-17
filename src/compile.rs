@@ -304,7 +304,7 @@ pub fn compile(scene: &Scene) -> Compiled {
                 tickers.push(format!(
                     "{{\"n\":{},\"speed\":{},\"sep\":{},\"gap\":{}}}",
                     n, fmt(l.speed.unwrap_or(100.0)),
-                    serde_json::to_string(l.separator.as_deref().unwrap_or("•")).unwrap(),
+                    serde_json::to_string(l.separator.as_deref().unwrap_or("•")).unwrap_or_else(|_| "\"•\"".into()),
                     fmt(l.gap.unwrap_or(48.0))
                 ));
             }
@@ -365,7 +365,7 @@ pub fn compile(scene: &Scene) -> Compiled {
                if (half > 0) tickerTweens.push(gsap.fromTo(trk, { x: 0 }, { x: -half, duration: half / t.speed, ease: 'none', repeat: -1 }));\n        });\n    };\n    \
                const stopTickers = () => { tickerTweens.forEach(t => t.kill()); tickerTweens = []; };\n";
     }
-    js += &format!("    const textNs = {};\n", serde_json::to_string(&text_ns).unwrap());
+    js += &format!("    const textNs = {};\n", serde_json::to_string(&text_ns).unwrap_or_else(|_| "{}".into()));
     js += "    const motionOf = n => motions.find(m => m.n === n) || {};\n    \
            const on = c => c && c.type && c.type !== 'none';\n    CGMotion.mount(root, {\n        container: scene,\n        \
            animIn: {{{ANIMATION_IN_JSON}}}, animOut: {{{ANIMATION_OUT_JSON}}},\n        \

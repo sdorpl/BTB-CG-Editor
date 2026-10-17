@@ -16,6 +16,7 @@ grafiki z dysku, paczka elementu `.cgpack`.
 - G1/1: usunięto `unwrap()` na ścieżkach z danych zewnętrznych (render, app, timeline, keyconv, canvas/tools, motion_page, motion_bridge, compile, btb-motion/channel); zostały CLI w `main.rs`, `presets.rs`, `i18n.rs` (patrz LUKI.md).
 - Dokumentacja aplikacji i instrukcja dla początkujących.
 - Obrazy z pliku na dysku (wybór pliku, nowa warstwa, osadzanie) — punkt A z [PROPOZYCJE-FUNKCJI.md](PROPOZYCJE-FUNKCJI.md).
+- G1: usunięto `unwrap()`/`expect()` na ścieżkach danych zewnętrznych (reszta: [LUKI.md](LUKI.md), luka 1).
 - Projekt formatu paczki elementu `.cgpack` ([FORMAT-PACZKI.md](FORMAT-PACZKI.md)) — sam projekt, bez implementacji.
 
 ## Następne zadanie
@@ -31,6 +32,7 @@ Przed wyborem zadania przeczytaj [LUKI.md](LUKI.md): niezawodność (G1) idzie p
 
 ## Blokery i decyzje do podjęcia przez użytkownika
 
+- `make e2e` czerwone: `graphic_drop_rotate` poz 5,3 px > 3 px (luka 28 w [LUKI.md](LUKI.md)); do zbadania przed kolejnymi commitami.
 - Prawa do dystrybucji czcionek i grafik w przykładach (`assets/BAHNSCHRIFT.TTF`, `CG elements converted/`): do rozstrzygnięcia
   przed publicznym wydaniem (patrz `AGENTS.md` §2).
 - Krok 5c (podmiana GSAP w `compile.rs`) wymaga zmian w BTB-CG (`cgmotion.js`, `renderer.js`); nie ruszamy bez zgody.
