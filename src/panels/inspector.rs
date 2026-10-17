@@ -29,6 +29,10 @@ pub fn draw_inspector(ui: &mut Ui, el: &mut Element, selected: &[String], tab: &
 // ── Layer tab ───────────────────────────────────────────────────────────────
 
 fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
+    if selected.len() == 1 && selected[0] == crate::motion_bridge::ELEMENT {
+        element_selection(ui, el);
+        return;
+    }
     let Some(scene) = el.scene.as_mut() else {
         ui.label(RichText::new(tr("layer.no_scene")).color(Color32::from_gray(140)));
         return;
@@ -373,6 +377,41 @@ fn optional_text(ui: &mut Ui, label: &str, salt: &str, t: &mut Option<TextEffect
     }
 }
 
+/// Rozmiar ramki sceny elementu.
+fn frame_section(ui: &mut Ui, scene: &mut Scene) {
+    heading(ui, tr("element.frame"));
+    ui.horizontal(|ui| {
+        ui.label("W"); num_range(ui, &mut scene.frame.w, 1.0, 1.0, 1920.0);
+        ui.label("H"); num_range(ui, &mut scene.frame.h, 1.0, 1.0, 1080.0);
+    });
+}
+
+/// Położenie całego elementu na wizji: kotwica, pozycja/marginesy, obrót, skala i warstwa Z.
+fn layout_section(ui: &mut Ui, lo: &mut Layout) {
+    heading(ui, tr("element.layout"));
+    
+    ui.horizontal(|ui| {
+        ui.label(tr("element.anchor"));
+        combo_t(ui, "side", &mut lo.side, &["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"], "opt.side");
+    });
+    if lo.side == "custom" {
+        let (mut x, mut y) = (lo.x.unwrap_or(0.0), lo.y.unwrap_or(0.0));
+        ui.horizontal(|ui| { ui.label("X"); num(ui, &mut x, 1.0); ui.label("Y"); num(ui, &mut y, 1.0); });
+        lo.x = Some(x); lo.y = Some(y);
+    } else {
+        ui.horizontal(|ui| { ui.label(tr("element.margin_x")); num(ui, &mut lo.margin_x, 1.0); ui.label("Y"); num(ui, &mut lo.margin_y, 1.0); });
+    }
+    ui.horizontal(|ui| { ui.label(tr("element.rotation")); num_range(ui, &mut lo.rotation, 0.5, -360.0, 360.0); });
+    ui.horizontal(|ui| { ui.label(tr("element.scale")); num_range(ui, &mut lo.scale, 0.01, 0.05, 10.0); ui.label(tr("element.layer_z")); let mut z = lo.layer.unwrap_or(1.0); num_range(ui, &mut z, 0.1, 0.0, 100.0); lo.layer = Some(z); });
+}
+
+/// Zaznaczony cały element (na kanwie lub w panelu warstw): jego rozmiar i położenie na wizji.
+fn element_selection(ui: &mut Ui, el: &mut Element) {
+    heading(ui, &trf("element.whole", &[("name", &el.name)]));
+    if let Some(scene) = el.scene.as_mut() { frame_section(ui, scene); }
+    layout_section(ui, &mut el.layout);
+}
+
 // ── Element tab ─────────────────────────────────────────────────────────────
 
 fn element_tab(ui: &mut Ui, el: &mut Element) {
@@ -389,28 +428,9 @@ fn element_tab(ui: &mut Ui, el: &mut Element) {
         ui.label(RichText::new(tr("element.badge_note")).small().color(Color32::from_gray(140)));
     }
 
-    if let Some(scene) = el.scene.as_mut() {
-        heading(ui, tr("element.frame"));
-        ui.horizontal(|ui| {
-            ui.label("W"); num_range(ui, &mut scene.frame.w, 1.0, 1.0, 1920.0);
-            ui.label("H"); num_range(ui, &mut scene.frame.h, 1.0, 1.0, 1080.0);
-        });
-    }
+    if let Some(scene) = el.scene.as_mut() { frame_section(ui, scene); }
 
-    heading(ui, tr("element.layout"));
-    let lo = &mut el.layout;
-    ui.horizontal(|ui| {
-        ui.label(tr("element.anchor"));
-        combo_t(ui, "side", &mut lo.side, &["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"], "opt.side");
-    });
-    if lo.side == "custom" {
-        let (mut x, mut y) = (lo.x.unwrap_or(0.0), lo.y.unwrap_or(0.0));
-        ui.horizontal(|ui| { ui.label("X"); num(ui, &mut x, 1.0); ui.label("Y"); num(ui, &mut y, 1.0); });
-        lo.x = Some(x); lo.y = Some(y);
-    } else {
-        ui.horizontal(|ui| { ui.label(tr("element.margin_x")); num(ui, &mut lo.margin_x, 1.0); ui.label("Y"); num(ui, &mut lo.margin_y, 1.0); });
-    }
-    ui.horizontal(|ui| { ui.label(tr("element.scale")); num_range(ui, &mut lo.scale, 0.01, 0.05, 10.0); ui.label(tr("element.layer_z")); let mut z = lo.layer.unwrap_or(1.0); num_range(ui, &mut z, 0.1, 0.0, 100.0); lo.layer = Some(z); });
+    layout_section(ui, &mut el.layout);
 
     heading(ui, tr("element.values"));
     ui.label(RichText::new(tr("element.values.hint")).small().color(Color32::from_gray(140)));

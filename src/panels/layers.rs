@@ -1,4 +1,5 @@
 use crate::model::{Layer, LayerType, Scene};
+use crate::motion_bridge::ELEMENT;
 use crate::i18n::tr;
 use egui::{Color32, RichText, Ui};
 
@@ -13,6 +14,13 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
             }
         }
     });
+    ui.separator();
+    // cały element: przesuwanie, skala i obrót ramki na wizji
+    let el_sel = selected.len() == 1 && selected[0] == ELEMENT;
+    if ui.selectable_label(el_sel, RichText::new(format!("▣ {}", tr("layers.element"))).color(Color32::from_gray(225))).clicked() {
+        *selected = vec![ELEMENT.to_string()];
+        *last_clicked = None;
+    }
     ui.separator();
 
     let mut delete: Vec<String> = vec![];
@@ -63,6 +71,8 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
         }
     });
 
+    // zaznaczenie warstwy z Ctrl dokłada tylko warstwy, bez całego elementu
+    if selected.len() > 1 { selected.retain(|s| s != ELEMENT); }
     if let Some((a, b)) = swap { scene.layers.swap(a, b); }
     for id in dup { duplicate_layer(scene, &id, selected); }
     if !delete.is_empty() {

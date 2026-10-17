@@ -515,6 +515,24 @@ impl Layout {
             _ => (self.x.unwrap_or(0.0), self.y.unwrap_or(0.0)),
         }
     }
+
+    /// Przesuwa ramkę na wizji o (dx, dy) pikseli pola, zachowując kotwicę: dla narożników zmieniają się marginesy
+    /// (z odpowiednim znakiem), dla `custom` współrzędne X/Y. Wyśrodkowanie nie ma marginesów, więc przechodzi na `custom`.
+    pub fn move_by(&mut self, dx: f32, dy: f32, fw: f32, fh: f32) {
+        match self.side.as_str() {
+            "top-left" => { self.margin_x += dx; self.margin_y += dy; }
+            "top-right" => { self.margin_x -= dx; self.margin_y += dy; }
+            "bottom-left" => { self.margin_x += dx; self.margin_y -= dy; }
+            "bottom-right" => { self.margin_x -= dx; self.margin_y -= dy; }
+            "center" => {
+                let (x, y) = self.frame_origin(fw, fh);
+                self.side = "custom".into();
+                self.x = Some(x + dx);
+                self.y = Some(y + dy);
+            }
+            _ => { self.x = Some(self.x.unwrap_or(0.0) + dx); self.y = Some(self.y.unwrap_or(0.0) + dy); }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -636,5 +654,28 @@ impl Element {
         el.extra.insert("version".into(), Value::from(1));
         crate::compile::apply_to_element(&mut el, scene);
         el
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn move_by_shifts_the_frame_origin_for_every_anchor() {
+        for side in ["custom", "top-left", "top-right", "bottom-left", "bottom-right", "center"] {
+            let mut lo = Layout { side: side.into(), margin_x: 40.0, margin_y: 30.0, ..Layout::default() };
+            let (x0, y0) = lo.frame_origin(600.0, 120.0);
+            lo.move_by(25.0, -15.0, 600.0, 120.0);
+            let (x1, y1) = lo.frame_origin(600.0, 120.0);
+            assert!((x1 - x0 - 25.0).abs() < 1e-3 && (y1 - y0 + 15.0).abs() < 1e-3, "{side}: ({x0}, {y0}) -> ({x1}, {y1})");
+        }
+    }
+
+    #[test]
+    fn moving_a_centered_frame_switches_to_custom() {
+        let mut lo = Layout { side: "center".into(), ..Layout::default() };
+        lo.move_by(10.0, 0.0, 400.0, 100.0);
+        assert_eq!(lo.side, "custom");
     }
 }
