@@ -4,7 +4,10 @@
 #   tools/package.sh windows   -> .exe + .zip                 (natywnie w Git Bash na Windows albo cross: TARGET=x86_64-pc-windows-gnu + mingw)
 #   tools/package.sh macos     -> .app (zip) + .dmg           (tylko na macOS; architektura = maszyny lub TARGET=…-apple-darwin)
 #   tools/package.sh native    -> to, co pasuje do bieżącego systemu
-# Zmienne: TARGET (cel rustc), APPIMAGETOOL (ścieżka do appimagetool), SKIP_BUILD=1 (użyj gotowej binarki).
+# Do paczek (poza samym .exe) trafia katalog runtime/ z Node.js, Playwrightem i Chromium (tools/make-runtime.sh),
+# dzięki czemu import ręcznych szablonów działa bez instalacji Node. Wymaga sieci przy pierwszym uruchomieniu.
+# Zmienne: TARGET (cel rustc), APPIMAGETOOL (ścieżka do appimagetool), SKIP_BUILD=1 (użyj gotowej binarki),
+#          NO_RUNTIME=1 (paczka bez runtime/, ok. 10 MB zamiast ok. 250 MB).
 # Aplikacja wkompilowuje zasoby (czcionka, WASM, odtwarzacz), więc binarka jest samodzielna.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,6 +31,15 @@ build() {
   [ -f "$BIN" ] || { echo "Brak binarki: $BIN" >&2; exit 1; }
 }
 
+# Ustawia RT na katalog runtime/ dla danego systemu (puste przy NO_RUNTIME=1). Runtime budowany jest natywnie:
+# przy cross-kompilacji (TARGET) pominięty.
+prepare_runtime() {
+  RT=""
+  [ -n "${NO_RUNTIME:-}" ] && return 0
+  [ -n "$TARGET" ] && { echo "TARGET ustawiony: pomijam runtime/ (budowany tylko natywnie)" >&2; return 0; }
+  RT="$("$ROOT/tools/make-runtime.sh" "$1" | tail -1)"
+}
+
 arch_of() { # nazwa architektury z celu rustc lub maszyny
   case "${TARGET:-$(uname -m)}" in
     x86_64*|amd64) echo x86_64 ;;
@@ -38,6 +50,7 @@ arch_of() { # nazwa architektury z celu rustc lub maszyny
 
 package_linux() {
   build
+  prepare_runtime linux
   local arch; arch="$(arch_of)"
   local deb_arch; case "$arch" in x86_64) deb_arch=amd64 ;; aarch64) deb_arch=arm64 ;; *) deb_arch="$arch" ;; esac
   mkdir -p "$DIST"
@@ -48,6 +61,7 @@ package_linux() {
   install -Dm755 "$BIN" "$pkg/usr/bin/$NAME"
   install -Dm644 packaging/$NAME.desktop "$pkg/usr/share/applications/$NAME.desktop"
   install -Dm644 assets/icon.png "$pkg/usr/share/icons/hicolor/512x512/apps/$NAME.png"
+  [ -n "$RT" ] && { mkdir -p "$pkg/usr/share/$NAME"; cp -a "$RT" "$pkg/usr/share/$NAME/runtime"; rm -f "$pkg/usr/share/$NAME/runtime/.complete"; }
   install -d "$pkg/DEBIAN"
   local size; size="$(du -sk "$pkg/usr" | cut -f1)"
   cat > "$pkg/DEBIAN/control" <<CTRL
@@ -57,7 +71,7 @@ Section: video
 Priority: optional
 Architecture: $deb_arch
 Installed-Size: $size
-Depends: libc6, libgl1, libxkbcommon0, libxkbcommon-x11-0, libwayland-client0, libx11-6, libxcursor1, libxrandr2, libxi6, libgtk-3-0
+Depends: libc6, libgl1, libxkbcommon0, libxkbcommon-x11-0, libwayland-client0, libx11-6, libxcursor1, libxrandr2, libxi6, libgtk-3-0, libnss3, libnspr4, libatk1.0-0t64 | libatk1.0-0, libatk-bridge2.0-0t64 | libatk-bridge2.0-0, libcups2t64 | libcups2, libdrm2, libgbm1, libasound2t64 | libasound2, libxcomposite1, libxdamage1, libxfixes3, libpango-1.0-0, libcairo2
 Maintainer: BTB <kpediapl@gmail.com>
 Description: $TITLE
  Edytor grafiki telewizyjnej (CG): elementy ze sceną, warstwami i animacjami,
@@ -73,6 +87,7 @@ CTRL
   install -Dm644 packaging/$NAME.desktop "$appdir/$NAME.desktop"
   install -Dm644 assets/icon.png "$appdir/$NAME.png"
   install -Dm644 assets/icon.png "$appdir/usr/share/icons/hicolor/512x512/apps/$NAME.png"
+  [ -n "$RT" ] && { mkdir -p "$appdir/usr/share/$NAME"; cp -a "$RT" "$appdir/usr/share/$NAME/runtime"; rm -f "$appdir/usr/share/$NAME/runtime/.complete"; }
   cat > "$appdir/AppRun" <<'RUN'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
@@ -95,13 +110,15 @@ RUN
 
 package_windows() {
   build .exe
+  prepare_runtime windows
   local arch; arch="$(arch_of)"
   mkdir -p "$DIST"
-  step "Windows .exe + .zip"
+  step "Windows .exe (sam program) + .zip (program + runtime/)"
   cp "$BIN" "$DIST/$NAME-$VERSION-windows-$arch.exe"
   local work; work="$(mktemp -d)"; trap 'rm -rf "$work"' RETURN
   mkdir "$work/$NAME-$VERSION"
   cp "$BIN" "$work/$NAME-$VERSION/$NAME.exe"
+  [ -n "$RT" ] && { cp -a "$RT" "$work/$NAME-$VERSION/runtime"; rm -f "$work/$NAME-$VERSION/runtime/.complete"; }
   if command -v zip >/dev/null; then
     (cd "$work" && zip -qr "$DIST/$NAME-$VERSION-windows-$arch.zip" "$NAME-$VERSION")
   else
@@ -113,6 +130,7 @@ package_windows() {
 package_macos() {
   [ "$(uname -s)" = Darwin ] || { echo "Paczka macOS wymaga macOS (iconutil/hdiutil)." >&2; exit 1; }
   build
+  prepare_runtime macos
   local arch; arch="$(arch_of)"
   mkdir -p "$DIST"
   step "macOS .app + .dmg"
@@ -120,6 +138,7 @@ package_macos() {
   local app="$work/$TITLE.app"
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
   cp "$BIN" "$app/Contents/MacOS/$NAME"
+  [ -n "$RT" ] && { cp -a "$RT" "$app/Contents/Resources/runtime"; rm -f "$app/Contents/Resources/runtime/.complete"; }
   # ikona .icns z assets/icon.png
   local iset="$work/icon.iconset"; mkdir "$iset"
   for s in 16 32 64 128 256 512; do
