@@ -3,7 +3,7 @@ use super::{align, edit_opt, edit_or, element, heading, hint};
 use crate::i18n::{tr, trf};
 use crate::model::*;
 use crate::panels::{color_edit, combo, combo_t, num, num_range};
-use egui::{CollapsingHeader, Ui};
+use egui::{Color32, CollapsingHeader, RichText, Ui};
 
 fn section<R>(ui: &mut Ui, id: &str, title: &str, open: bool, body: impl FnOnce(&mut Ui) -> R) {
     CollapsingHeader::new(egui::RichText::new(title).strong()).id_salt(id).default_open(open).show(ui, |ui| { body(ui); });
@@ -231,8 +231,34 @@ fn font_props(ui: &mut Ui, f: &mut FontStyle, salt: &str) {
     ui.horizontal(|ui| { ui.label(tr("font.shadow")); ui.add(egui::TextEdit::singleline(&mut f.shadow).desired_width(150.0).font(egui::TextStyle::Monospace)); });
 }
 
+/// Przycisk „Wybierz plik…”: osadza obraz w warstwie (błąd i ostrzeżenie o rozmiarze zostają pod przyciskiem).
+fn pick_file_ui(ui: &mut Ui, l: &mut Layer) {
+    let err_id = egui::Id::new(("media_err", &l.id));
+    ui.horizontal(|ui| {
+        if ui.button(tr("media.pick")).clicked() {
+            if let Some(p) = crate::media::pick_image() {
+                match crate::media::load_file(&p) {
+                    Ok(a) => {
+                        crate::media::apply_to_layer(l, &a);
+                        let msg = if a.is_large() { trf("media.big_warning", &[("mb", &(crate::media::WARN_BYTES / 1024 / 1024))]) } else { String::new() };
+                        ui.data_mut(|d| d.insert_temp(err_id, msg));
+                    }
+                    Err(e) => ui.data_mut(|d| d.insert_temp(err_id, e)),
+                }
+            }
+        }
+        if let Some(n) = l.extra.get("srcName").and_then(|v| v.as_str()).filter(|_| l.src.as_deref().is_some_and(|s| s.starts_with("data:"))) {
+            ui.label(RichText::new(trf("media.file", &[("name", &n)])).small().color(Color32::from_gray(150)));
+        }
+    });
+    if let Some(msg) = ui.data(|d| d.get_temp::<String>(err_id)).filter(|m| !m.is_empty()) {
+        ui.label(RichText::new(msg).small().color(Color32::from_rgb(230, 170, 70)));
+    }
+}
+
 fn media_props(ui: &mut Ui, l: &mut Layer, video: bool) {
     heading(ui, if video { tr("media.video") } else { tr("media.image") });
+    if !video { pick_file_ui(ui, l); }
     edit_or(&mut l.src, String::new(), |src| { ui.horizontal(|ui| { ui.label(tr("media.source")); ui.add(egui::TextEdit::singleline(src).desired_width(150.0)); }); });
     if !video {
         edit_or(&mut l.bind, String::new(), |b| { ui.horizontal(|ui| { ui.label(tr("media.bind")); ui.add(egui::TextEdit::singleline(b).desired_width(110.0).hint_text(tr("media.bind.hint"))); }); });

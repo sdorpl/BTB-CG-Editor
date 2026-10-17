@@ -529,6 +529,13 @@ impl CgEditorApp {
                     });
                     if ui.button(format!("{}   Ctrl+O", tr("menu.file.open"))).clicked() { self.open_dialog(); ui.close_menu(); }
                     if ui.button(tr("menu.file.import")).clicked() { self.import.open = true; ui.close_menu(); }
+                    if ui.add_enabled(self.element.scene.is_some(), egui::Button::new(tr("menu.file.add_image"))).clicked() {
+                        let paths = crate::media::pick_images();
+                        if let Some(scene) = self.element.scene.as_mut().filter(|_| !paths.is_empty()) {
+                            self.status = crate::media::add_files(scene, &paths, &mut self.selected).unwrap_or_else(|| tr("status.ready").into());
+                        }
+                        ui.close_menu();
+                    }
                     if ui.add_enabled(crate::convert::needs_conversion(&self.element) && self.import.conv.is_none(), egui::Button::new(tr("menu.file.convert"))).clicked() { self.convert_current(); ui.close_menu(); }
                     if ui.button(format!("{}   Ctrl+P", tr("menu.file.html_preview"))).clicked() { self.open_preview(); ui.close_menu(); }
                     ui.separator();

@@ -34,6 +34,16 @@ Język: domyślnie polski. Angielski włączysz zmienną `BTB_LANG=en`.
 Wskazówka: pomocne jest przyciąganie (pasek nad kanwą) – warstwy „łapią” krawędzie i środek ramki.
 Widok dopasujesz klawiszem **F**, zoom to kółko myszy, przesuwanie widoku – spacja i przeciąganie.
 
+## 2a. Dodawanie logo lub zdjęcia z dysku
+
+1. W panelu warstw kliknij **🖼 Obraz z pliku…** (albo **Plik → Dodaj obraz z pliku…**) i wybierz jeden lub kilka plików
+   (PNG, JPEG, WebP, GIF, BMP, SVG).
+2. Każdy plik staje się osobną warstwą, wpasowaną w ramkę i wyśrodkowaną; nazwa warstwy to nazwa pliku.
+3. Chcesz podmienić obraz w istniejącej warstwie? Zaznacz ją i w zakładce **Właściwości** kliknij **Wybierz plik…**.
+4. Plik jest wbudowany w element – nie trzeba go nosić osobno, a belka działa w OBS bez dostępu do Twojego dysku.
+   Duże obrazy (powyżej 2 MB) powiększają plik elementu, więc zmniejsz je wcześniej.
+5. Tryb obrazu (*Dopasowanie*: wpasuj, wypełnij, rozciągnij…) i zaokrąglenie ustawisz w tej samej zakładce.
+
 ## 3. Gdzie ma stać belka na ekranie (Layout)
 
 Kliknij na liście warstw **▣ Element (całość)** i przejdź do zakładki **Element**. W sekcji *Pozycja na wizji*
@@ -106,6 +116,7 @@ Alternatywnie wyślij element do serwera BTB-CG: **Plik → Wyślij do banku BTB
 
 | Objaw | Co zrobić |
 |---|---|
+| „Nie jest obsługiwanym obrazem” przy dodawaniu pliku | użyj PNG, JPEG, WebP, GIF, BMP lub SVG; typ sprawdzany jest po zawartości, nie po rozszerzeniu |
 | Warstwa się nie rusza | sprawdź kłódkę 🔒 przy warstwie |
 | Nie widać animacji | użyj ▶ IN; sprawdź, czy typ animacji nie jest *Brak* |
 | Tekst jest ściśnięty | to „squash” – dopasowanie do szerokości; zmień szerokość warstwy lub sekcję *Ściskanie tekstu* |

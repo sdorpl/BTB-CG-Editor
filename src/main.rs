@@ -8,6 +8,7 @@ mod i18n;
 mod importer;
 mod keyconv;
 mod links;
+mod media;
 mod model;
 mod motion_bridge;
 mod motion_page;

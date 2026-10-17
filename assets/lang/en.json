@@ -488,5 +488,14 @@
   "motion.keys.engine": "Preview uses the key engine (btb-motion); keys work only on the WASM output page.",
   "motion.keys.clear": "Delete keys",
   "motion.title_element": "Element motion",
-  "element.margin_y": "Margin Y"
+  "element.margin_y": "Margin Y",
+  "media.pick": "Choose file…",
+  "media.file_filter": "Images",
+  "media.file": "File: {name}",
+  "media.too_big": "File \"{name}\" is too large (limit {mb} MB).",
+  "media.unsupported": "File \"{name}\" is not a supported image (PNG, JPEG, WebP, GIF, BMP, SVG).",
+  "media.read_error": "Cannot read \"{name}\": {err}",
+  "media.big_warning": "Large image (> {mb} MB) makes the element file bigger; consider shrinking it.",
+  "layers.add_image_file": "Image from file…",
+  "menu.file.add_image": "Add image from file…"
 }

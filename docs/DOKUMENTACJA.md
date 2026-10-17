@@ -49,7 +49,7 @@ Dla kodu ręcznego edytor pokazuje kod, podgląd HTML i przycisk „Utwórz scen
 Okno (domyślnie 1600×900) składa się z:
 
 1. **Paska menu**: Plik, Edycja, Widok + sterowanie odtwarzaniem (▶ IN, ▶ OUT, ⟳ Cykl, ■ Stop).
-2. **Panelu warstw** (lewo): przyciski dodawania warstw (kształt, tekst, obraz, wideo, zegar, ticker), pozycja „▣ Element (całość)”, lista warstw z widocznością (👁), blokadą (🔒), kolejnością (wyżej/niżej), duplikowaniem i usuwaniem.
+2. **Panelu warstw** (lewo): przyciski dodawania warstw (kształt, tekst, obraz, wideo, zegar, ticker), przycisk „🖼 Obraz z pliku…” (wybór jednego lub wielu plików z dysku), pozycja „▣ Element (całość)”, lista warstw z widocznością (👁), blokadą (🔒), kolejnością (wyżej/niżej), duplikowaniem i usuwaniem.
 3. **Kanwy** (środek): pole 1920×1080 z ramką elementu, uchwytami, prowadnicami i nakładką ścieżki ruchu. Pasek: dopasowanie widoku (⛶ Pole, ▭ Ramka), 🌐 Podgląd HTML, obszary bezpieczne, przyciąganie.
 4. **Inspektora** (prawo), cztery zakładki:
    - **Właściwości** – dla zaznaczonej warstwy: przekształcenie (położenie, rozmiar, obrót, skos, krycie, grupa), wygląd i właściwości typu (wypełnienie, gradient, obrys, zaokrąglenia, cień, efekt tła; czcionka i tekst; obraz/wideo; zegar; ticker), wyrównanie, sekcja zaawansowana. Przy zaznaczeniu wielu warstw: wyrównanie, rozmieszczenie i przesunięcie zbiorcze. Przy zaznaczeniu całego elementu panel odsyła do zakładki Element.
@@ -142,6 +142,7 @@ i maski przybliżeniem; dokładny wygląd daje strona wyjściowa.
 
 | Funkcja | Jak |
 |---|---|
+| Grafika z pliku | Panel warstw → „Obraz z pliku…”, Plik → Dodaj obraz z pliku…, albo „Wybierz plik…” w zakładce Właściwości warstwy obrazu. Formaty: PNG, JPEG, WebP, GIF, BMP, SVG (typ rozpoznawany po zawartości). Plik jest **osadzany** w elemencie jako `data:` URI (element jest samowystarczalny, działa w OBS bez dostępu do dysku); limit 12 MB, ostrzeżenie powyżej 2 MB. Nowa warstwa dostaje rozmiar obrazu wpasowany w 80% ramki i nazwę pliku; oryginalna nazwa jest w polu `srcName`. Serwer BTB-CG przy wysyłce sam przenosi osadzone obrazy do `uploads/` |
 | Zapis | Plik → Zapisz / Zapisz jako (JSON `{ "_exportVersion": 3, "elements": [...] }`), Kopiuj JSON do schowka |
 | Bank / biblioteka BTB-CG | Plik → Wyślij do banku / biblioteki (`POST /api/elements`; ten sam id = aktualizacja) |
 | Import z serwera | Plik → Importuj z BTB-CG… (`GET /api/state`: bank + biblioteka; starsze serwery: `db.json`) lub z pliku |
@@ -194,6 +195,7 @@ zmienna `BTB_LANG` (domyślnie polski). Nowy napis wymaga klucza w obu plikach; 
 | `src/compile.rs` | scena → HTML/CSS/JS elementu BTB-CG (kontrakt pilnowany testem `compile_matches_btb_cg_scene_model`) |
 | `src/motion_bridge.rs`, `src/keyconv.rs` | most `ElementAnimation → Director`; konwersja presetów na klucze |
 | `src/motion_page.rs`, `assets/btb-motion-player.js` | generowanie strony wyjściowej z runtime WASM |
+| `src/media.rs` | wczytanie obrazów z dysku, rozpoznanie typu, osadzanie `data:` URI, warstwa obrazu z pliku |
 | `src/importer.rs`, `src/convert.rs`, `tools/convert-bridge.js` | import z serwera, konwersja kodu na scenę |
 | `btb-motion/` | silnik animacji bez egui: Director / Actor / Channel / Key, easingi GSAP, efekty tekstu, ścieżka ruchu |
 | `btb-motion-wasm/` | ten sam silnik jako WASM (C ABI) |
@@ -209,3 +211,4 @@ Zasady silnika (zgodność z GSAP, baking easingów, czas w sekundach, pętle na
 - Klucze i ścieżka działają tylko na stronie wyjściowej z WASM (nie ma ich w GSAP/`compile.rs`).
 - Import: auto-szerokość elementów kodowych nie jest odwzorowana.
 - Wybór języka nie ma jeszcze UI.
+- Grafiki z pliku: tylko obrazy (bez wideo); brak przeciągania plików na kanwę i wklejania ze schowka (plan: [PROPOZYCJE-FUNKCJI.md](PROPOZYCJE-FUNKCJI.md)); paczka elementu z plikami: [FORMAT-PACZKI.md](FORMAT-PACZKI.md) (projekt).

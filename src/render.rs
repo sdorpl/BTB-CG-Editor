@@ -727,6 +727,12 @@ fn draw_image(p: &Painter, ctx: &Context, l: &Layer, m: &Aff, opacity: f32, valu
             Err(Some(e)) => return placeholder(&trf("render.fetch_error", &[("err", &e.chars().take(60).collect::<String>())])),
         }
     }
+    if uri.starts_with("data:") {
+        match crate::media::register_data_uri(ctx, &uri) {
+            Some(u) => uri = u,
+            None => return placeholder(&trf("render.image_error", &[("err", &"data URI")])),
+        }
+    }
     match ctx.try_load_texture(&uri, TextureOptions::LINEAR, SizeHint::default()) {
         Ok(TexturePoll::Ready { texture }) => {
             let (iw, ih) = (texture.size.x.max(1.0), texture.size.y.max(1.0));

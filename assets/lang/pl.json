@@ -488,5 +488,14 @@
   "motion.keys.engine": "Podgląd używa silnika kluczy (btb-motion); klucze działają tylko na stronie wyjściowej z WASM.",
   "motion.keys.clear": "Usuń klucze",
   "motion.title_element": "Ruch elementu",
-  "element.margin_y": "Margines Y"
+  "element.margin_y": "Margines Y",
+  "media.pick": "Wybierz plik…",
+  "media.file_filter": "Obrazy",
+  "media.file": "Plik: {name}",
+  "media.too_big": "Plik „{name}” jest za duży (limit {mb} MB).",
+  "media.unsupported": "Plik „{name}” nie jest obsługiwanym obrazem (PNG, JPEG, WebP, GIF, BMP, SVG).",
+  "media.read_error": "Nie można wczytać „{name}”: {err}",
+  "media.big_warning": "Duży obraz (> {mb} MB) powiększa plik elementu; rozważ zmniejszenie.",
+  "layers.add_image_file": "Obraz z pliku…",
+  "menu.file.add_image": "Dodaj obraz z pliku…"
 }

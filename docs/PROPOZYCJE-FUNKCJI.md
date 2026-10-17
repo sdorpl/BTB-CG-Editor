@@ -148,6 +148,9 @@ Kopię oryginalnej nazwy zachowujemy w `extra` warstwy (`srcName`), by pokazać 
 
 Poza zakresem pierwszej wersji: sekwencje obrazów, PSD/AI/PDF (z `footage.md` EffectCraft), wideo z miniaturą, edycja obrazu.
 
+**Status:** etapy 1 i 2 wdrożone (moduł `src/media.rs`, przyciski w panelu warstw, inspektorze i menu Plik; limit 12 MB). Podgląd w egui dekoduje `data:` URI sam,
+bo loadery egui ich nie obsługują. Etapy 3–5 oczekują; dalszy ciąg (paczka z plikami) – [FORMAT-PACZKI.md](FORMAT-PACZKI.md).
+
 ### 3.5 Etapy wdrożenia
 
 **Etap 1 – wybór pliku i osadzanie (1,5 dnia)**

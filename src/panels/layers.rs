@@ -14,6 +14,18 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
             }
         }
     });
+    // obraz z pliku na dysku: wybór wielu plików, każdy jako osobna warstwa
+    let err_id = egui::Id::new("layers_media_err");
+    if ui.small_button(format!("🖼 {}", tr("layers.add_image_file"))).clicked() {
+        let paths = crate::media::pick_images();
+        if !paths.is_empty() {
+            let msg = crate::media::add_files(scene, &paths, selected).unwrap_or_default();
+            ui.data_mut(|d| d.insert_temp(err_id, msg));
+        }
+    }
+    if let Some(msg) = ui.data(|d| d.get_temp::<String>(err_id)).filter(|m| !m.is_empty()) {
+        ui.label(RichText::new(msg).small().color(Color32::from_rgb(230, 170, 70)));
+    }
     ui.separator();
     // cały element: przesuwanie, skala i obrót ramki na wizji
     let el_sel = selected.len() == 1 && selected[0] == ELEMENT;
