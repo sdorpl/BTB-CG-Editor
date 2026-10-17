@@ -3,6 +3,7 @@ mod app;
 mod canvas;
 mod compile;
 mod convert;
+mod gpu;
 mod i18n;
 mod importer;
 mod keyconv;
@@ -120,11 +121,14 @@ fn main() -> eframe::Result<()> {
     if raw.first().map(|s| s.as_str()) == Some("--dump-compile") { dump_compile(&raw[1..]); return Ok(()); }
     i18n::init_from_env();
     let cli = parse_cli();
+    let gpu = gpu::GpuConfig::from_process();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("BTB CGEditor")
             .with_inner_size([1600.0, 900.0])
             .with_min_inner_size([900.0, 600.0]),
+        hardware_acceleration: gpu.accel,
+        renderer: gpu.renderer,
         ..Default::default()
     };
     eframe::run_native("BTB CGEditor", options, Box::new(move |cc| Ok(Box::new(CgEditorApp::new(cc, cli.clone())))))

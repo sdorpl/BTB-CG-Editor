@@ -30,6 +30,7 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 - `make fmt`, `make lint`, `make test`, `make wasm`, `make parity`, `make e2e`. Zestawy porównania z GSAP: `E2E_SET=e2e|e2e-matrix|e2e-text node tools/e2e-gsap-compare.js` (`VERBOSE=1`, `RAW=1`, `ONLY=regex` do diagnozy); easingi: `node tools/ease-parity.js`.
 - Zrzut edytora do oglądania: `btb-cgeditor --open plik.json --shot out.png --frames 25 [--select N] [--graph] [--phase hold:0.3]` (okno otwiera się na chwilę).
 - Strona dla OBS: `btb-cgeditor --write-motion-html element.json output-motion.html`; w OBS parametry `?obs=1`, `?auto=1`, `?ws=ws://host:port`.
+- Akceleracja sprzętowa okna (`src/gpu.rs`): `--gpu auto|on|off` (`BTB_GPU`; auto = GPU z awaryjnym programowym, on = wymagane, off = programowo) i `--renderer glow|wgpu` (`BTB_RENDERER`; domyślnie glow/OpenGL, wgpu = Vulkan/Metal/DX12). CLI ma pierwszeństwo przed zmienną. Tryb `--gpu` działa dla glow; wgpu zawsze wybiera adapter o wysokiej wydajności.
 - Podgląd silnikiem btb-motion w edytorze: `BTB_ENGINE=motion btb-cgeditor`.
 - `target-dir` jest ustawiony w `.cargo/config.toml` na `/tmp/btb-cgeditor-target` (Nextcloud blokuje uruchamianie binarek build-script w synchronizowanym drzewie). Nie zmieniaj tego.
 - Testy macierzy zgodności trwają ok. 75 s w debugu; `btb-motion` jest kompilowany z `opt-level = 3` także w dev/test.
