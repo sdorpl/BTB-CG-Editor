@@ -25,7 +25,7 @@ i wierność idą przed nowymi funkcjami.
 | 6 | Strona wyjściowa sprawdzona tylko w Chromium (Playwright), nie w samym OBS | wymaga próby w OBS Browser Source |
 | 7 | Brak Local Stop na stronie wyjściowej; czas Stop liczony z tekstu domyślnego | punkt J z propozycji |
 | 8 | Podgląd egui przybliża efekty tekstowe i maski (`Transform::approx`) | dokładny wygląd daje strona wyjściowa |
-| 9 | Auto-szerokość po imporcie: elementy mają stały rozmiar tła | model, kompilatory, podgląd, strona WASM i UI zrobione (M2.0, 2026-10-18); zostaje ustawianie `autoW`/`fitText` przez konwerter (sonda → model) i migracja istniejącej oprawy |
+| 9 | Auto-szerokość po imporcie: elementy mają stały rozmiar tła | model, kompilatory, podgląd, strona WASM i UI zrobione (M2.0, 2026-10-18), oprawa w `CG elements converted` zmigrowana (`upgrade-autowidth.js` w BTB-CG); zostaje ustawianie `autoW`/`fitText` przez konwerter (sonda → model) |
 | 10 | Layout (`side`, `margin`, `scale`, `rotation`) bez porównania z `renderer.js` | dodać test zgodności |
 | 28 | E2E `graphic_drop_rotate` przekracza próg pozycji (5,3 px przy progu 3 px) | `make e2e` czerwone także bez zmian z 2026-10-17; `make check` nie przechodzi do końca |
 | 11 | Klucze i ścieżka bez odpowiednika GSAP/`compile.rs` | działają tylko na stronie z WASM; testy `tools/e2e-gsap-compare.js` je pomijają |
