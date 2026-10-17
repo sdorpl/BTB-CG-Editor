@@ -12,6 +12,7 @@ mod media;
 mod model;
 mod motion_bridge;
 mod motion_page;
+mod pack;
 mod panels;
 mod playback;
 mod preview;

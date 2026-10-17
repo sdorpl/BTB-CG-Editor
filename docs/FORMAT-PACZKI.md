@@ -1,6 +1,9 @@
 # Paczka elementu (`.cgpack`) – projekt formatu
 
-Status: **projekt do zatwierdzenia**, nic z tego dokumentu nie jest jeszcze wdrożone (poza osadzaniem obrazów z pliku, patrz niżej).
+Status (2026-10-17): **wdrożone** — format `.cgpack` v1 (rozszerzenie i biblioteki zatwierdzone w planie M1: `zip` + `sha1` w Rust, `fflate` w Node).
+Edytor: `src/pack.rs` (zapis/odczyt, walidacja, testy, obieg z `pack-io.js` w BTB-CG), menu Plik → „Eksportuj paczkę elementu (.cgpack)…”, otwieranie `.cgpack` (Otwórz, `--open`).
+System: `pack-io.js`, `POST /api/packs`, `GET /api/packs/:id`, przyciski w panelu i Trio. Wysyłka z edytora na serwer nadal idzie przez `POST /api/elements` z obrazami jako `data:`
+(serwer sam zewnętrznizuje do `uploads/` — wariant dopuszczony w §4); osobna wysyłka paczki z edytora nie jest potrzebna. Wideo w paczce: obsługiwane przez serwer, edytor czyta tylko obrazy.
 Cel: jeden plik wymienialny między **BTB CG Editor** (Rust) i **BTB CG System** (repo `BTB-CG-System-alpha`, gałąź `TRIO`), zawierający
 element wraz z jego plikami graficznymi.
 

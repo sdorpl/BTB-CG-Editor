@@ -161,12 +161,14 @@ impl CgEditorApp {
     }
 
     fn open_path(&mut self, p: PathBuf) {
-        match std::fs::read_to_string(&p).map_err(|e| e.to_string()).and_then(|t| importer::parse_elements(&t)) {
+        // .cgpack: ZIP z elementem i plikami graficznymi (docs/FORMAT-PACZKI.md); obrazy wracają osadzone jako data:
+        let text = if crate::pack::is_pack_path(&p) { std::fs::read(&p).map_err(|e| e.to_string()).and_then(|b| crate::pack::read_pack(&b)) } else { std::fs::read_to_string(&p).map_err(|e| e.to_string()) };
+        match text.and_then(|t| importer::parse_elements(&t)) {
             Ok(mut list) => {
                 if list.len() == 1 {
                     let l = list.remove(0);
                     self.load_element(l.element);
-                    self.path = Some(p);
+                    self.path = if crate::pack::is_pack_path(&p) { None } else { Some(p) };   // paczka to wymiana, nie plik roboczy: zapis pyta o nazwę
                 } else {
                     self.import.results = list;
                     self.import.status = trf("import.file_many", &[("n", &self.import.results.len())]);
@@ -195,8 +197,21 @@ impl CgEditorApp {
         if let Some(p) = rfd::FileDialog::new().set_file_name(&name).add_filter("BTB-CG element", &["json"]).save_file() { self.save_to(p); }
     }
 
+    fn export_pack(&mut self) {
+        self.flush_compile();
+        let name = format!("{}.cgpack", self.element.name.replace(' ', "_"));
+        let Some(p) = rfd::FileDialog::new().set_file_name(&name).add_filter("BTB-CG pack", &["cgpack"]).save_file() else { return };
+        match crate::pack::build_pack(&self.element).and_then(|b| { let n = b.len(); std::fs::write(&p, b).map(|_| n).map_err(|e| e.to_string()) }) {
+            Ok(_) => {
+                let files = crate::pack::count_assets(&std::fs::read(&p).unwrap_or_default());
+                self.status = trf("status.pack_saved", &[("path", &p.display()), ("files", &files)]);
+            }
+            Err(e) => self.status = trf("status.pack_failed", &[("err", &e)]),
+        }
+    }
+
     fn open_dialog(&mut self) {
-        if let Some(p) = rfd::FileDialog::new().add_filter("BTB-CG element / db.json", &["json"]).pick_file() { self.open_path(p); }
+        if let Some(p) = rfd::FileDialog::new().add_filter("BTB-CG element / db.json / .cgpack", &["json", "cgpack"]).pick_file() { self.open_path(p); }
     }
 
     fn open_preview(&mut self) {
@@ -542,6 +557,7 @@ impl CgEditorApp {
                     if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_bank"))).on_hover_text(tr("menu.file.push_bank.hover")).clicked() { self.push_to_btb(importer::PushTarget::Bank); ui.close_menu(); }
                     if ui.add_enabled(self.push_rx.is_none(), egui::Button::new(tr("menu.file.push_library"))).on_hover_text(tr("menu.file.push_library.hover")).clicked() { self.push_to_btb(importer::PushTarget::Library); ui.close_menu(); }
                     ui.separator();
+                    if ui.button(tr("menu.file.export_pack")).on_hover_text(tr("menu.file.export_pack.hover")).clicked() { self.export_pack(); ui.close_menu(); }
                     if ui.button(format!("{}   Ctrl+S", tr("menu.file.save"))).clicked() { self.save(); ui.close_menu(); }
                     if ui.button(format!("{}   Ctrl+Shift+S", tr("menu.file.save_as"))).clicked() { self.save_as(); ui.close_menu(); }
                     if ui.button(tr("menu.file.copy_json")).clicked() {
