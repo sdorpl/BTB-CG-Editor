@@ -83,6 +83,12 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 
 Stan faz: 0–6 zrobione (rdzeń, most, odtwarzacz, WASM, strona wyjściowa, zgodność z GSAP, efekty tekstowe, easingi). 5c (podmiana GSAP w `compile.rs`) celowo niezrobione: wymaga zmian w `cgmotion.js`/`renderer.js` w BTB-CG, kontrakt pilnuje test `compile_matches_btb_cg_scene_model`.
 
+## Auto-szerokość tekstu (M2.0)
+
+- Warstwa tekstowa `autoW` (+ `minW`/`maxW`) ma szerokość tekstu; `w` to szerokość z projektu. Warstwy z `fitText { to, mode }` (`size` = rozciąganie, `follow` = przesunięcie o deltę prawego brzegu) podążają za nią. Nazwa `fitText`, bo `fit` to dopasowanie obrazu.
+- **Reguła jest w czterech miejscach — zmieniaj je naraz:** `scene-model.js` w BTB-CG (`fitSpec`/`fitRun`), `compile.rs` (`fit_spec`/`FIT_RUN`, bajt w bajt; test `compile_fit_text_matches_btb_cg_scene_model`), `assets/btb-motion-player.js` (`P.fit`, spec w `BTB_CONFIG.fit`), podgląd egui `render::fit_adjust`/`text_width`. Pomiar w przeglądarce: `offsetWidth` przy `width:max-content; flex:none` (bez `flex:none` `.cg-t` z `overflow:hidden` kurczy się do pudełka).
+- Test w przeglądarce: `node tools/e2e-fit.js` (`make check` go uruchamia razem z e2e).
+
 ## Konwersje: presety na klucze, import ręcznych szablonów
 
 - **Presety → klucze** (`keyconv::convert_presets`, przycisk „Presety na klucze” na osi czasu i menu elementu/warstwy): krzywe są dopasowywane kilkoma kluczami z uchwytami Béziera (`Channel::fit`, tolerancja min(0,15% zakresu, 0,6 px / 0,15° / 0,4%)), IN i OUT sklejane w jeden kanał z `Hold` na przeskokach stanu; klucze elementu leżą w `Scene.keys` (cel `"element"`). Po konwersji preset = `none`, a Stop zostaje (`stopAt`); OUT elementu `none` nie chowa elementu, gdy ma on klucze. Pętle i efekty tekstowe zostają presetami. Test zgodności: `keyconv::tests` (macierz typów) oraz porównanie strony z kluczami z GSAP oryginału (`<nazwa>.converted.json` w zestawach `e2e*`).
@@ -133,7 +139,7 @@ Dalej (z planu): Local Stop z osobnym czasem per Director; ekspresje; ewentualni
 - Strona wyjściowa: brak Local Stop; efekty tekstowe są (zgodne z GSAP), ale czas Stop liczony z tekstu domyślnego; sprawdzona tylko w Chromium (Playwright), nie w samym OBS.
 - Podgląd egui rysuje efekty tekstowe i maski (żaluzja, ukośna maska, RGB) przybliżeniami (`Transform::approx`, `anim.rs`); dokładny wygląd daje strona wyjściowa.
 - Oś czasu: brak zoomu i zaznaczania ramką; ręcznie dodawane klucze to `KEY_PROPS` (6 właściwości) i ścieżka, ale konwersja presetów tworzy też kanały pomocnicze (skos, rozmycie, przycięcie, maska…).
-- Import: elementy o **auto-szerokości** (belki „NA ŻYWO”, „MIASTO”…) po konwersji mają stały rozmiar tła; po zmianie tytułu rozjeżdżają się z oryginałem (57–84% pikseli przy `DYN=…`). Wykrywa to sonda (ostrzeżenie + ściskanie tekstu); prawdziwa naprawa wymaga auto-szerokości w modelu sceny, który jest współdzielony z BTB-CG (`scene-model.js`) i pilnowany testem `compile_matches_btb_cg_scene_model`.
+- Import: elementy o **auto-szerokości** (belki „NA ŻYWO”, „MIASTO”…) po konwersji mają stały rozmiar tła. Model auto-szerokości jest gotowy (`autoW`/`minW`/`maxW`, `fitText`; patrz niżej), brakuje ustawiania go przez konwerter (sonda tylko ostrzega) i migracji istniejącej oprawy (plan M2 w BTB-CG, krok M2.0.5–6).
 - Layout (`side`, `margin`, `scale`, `rotation`) liczony z `Layout::frame_origin`, bez porównania z `renderer.js`.
 - Folder projektu leży w Nextcloud: `reference/effectcraft/` (ok. 1100 plików) też będzie synchronizowany; jeśli to problem, dodaj go do wyłączeń synchronizacji.
 

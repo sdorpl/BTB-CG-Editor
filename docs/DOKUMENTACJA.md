@@ -138,6 +138,18 @@ W pasku menu: **▶ IN**, **▶ OUT**, **⟳ Cykl** (IN → trzymaj → OUT), **
 `playback::evaluate`, a gdy element ma klucze lub ścieżkę – silnika `btb-motion`. Podgląd rysuje efekty tekstu
 i maski przybliżeniem; dokładny wygląd daje strona wyjściowa.
 
+### 5.7 Auto-szerokość tekstu
+
+Warstwa tekstowa z opcją **Auto-szerokość** (*Zaawansowane*) ma szerokość równą szerokości tekstu; pole `w` to szerokość
+z projektu, a opcjonalne *min. szer.* / *maks. szer.* ograniczają wynik (po przekroczeniu maksimum tekst jest ściskany).
+Inne warstwy podążają za tekstem przez **Dopasuj do tekstu** (*Zaawansowane*, warstwy niebędące tekstem): **Rozciągaj**
+(szerokość rośnie o różnicę, np. tło belki) lub **Przesuwaj** (pozycja przesuwa się za prawym brzegiem tekstu, np. ikona
+albo kropka). Kotwica zależy od wyrównania tekstu: dla tekstu do prawej lub do środka lewy brzeg przesuwa się odpowiednio.
+Ta sama reguła działa w podglądzie edytora, w kodzie elementu (`SceneModel.compile` w BTB-CG i `compile.rs`; zgodność pilnuje
+test `compile_fit_text_matches_btb_cg_scene_model`) oraz na stronie wyjściowej z WASM (`P.fit` w `btb-motion-player.js`,
+`tools/e2e-fit.js`). Pola w pliku: `autoW`, `minW`, `maxW`, `fitText { to, mode: size|follow }`. Szerokość ramki sceny
+rośnie o największe przesunięcie prawego brzegu; pozycja ramki na wizji (`layout`) się nie zmienia.
+
 ## 6. Eksport i integracje
 
 | Funkcja | Jak |
@@ -158,7 +170,7 @@ nieaktywne = reset), `?auto=1` (TAKE po załadowaniu), `?ws=ws://host:port` (kom
 Okno importu pobiera elementy z serwera BTB-CG lub z pliku. Elementy z kodem ręcznym można skonwertować na sceny
 (wymaga Node.js i katalogu BTB-CG – `BTB_CG_DIR`, domyślnie `~/Nextcloud/GitHub/BTB-CG-System-alpha`). Konwerter
 odtwarza stan końcowy, domyślne efekty tekstu i animacje `onShow`; uwagi trafiają do „Uwag konwersji”. Oryginalny
-kod zostaje w `codeBackup`. Znane ograniczenie: elementy o auto-szerokości po zmianie tytułu rozjeżdżają się z oryginałem.
+kod zostaje w `codeBackup`. Elementy o auto-szerokości po konwersji nadal mają stały rozmiar tła (konwerter nie ustawia jeszcze `autoW`/`fitText`, patrz 5.7); ustaw je ręcznie.
 
 ## 8. Uruchamianie i narzędzia wiersza poleceń
 
@@ -209,6 +221,6 @@ Zasady silnika (zgodność z GSAP, baking easingów, czas w sekundach, pętle na
 - Podgląd egui przybliża efekty tekstowe i maski.
 - Oś czasu: brak zoomu i zaznaczania ramką; ręcznie dodawane klucze to 6 właściwości i ścieżka.
 - Klucze i ścieżka działają tylko na stronie wyjściowej z WASM (nie ma ich w GSAP/`compile.rs`).
-- Import: auto-szerokość elementów kodowych nie jest odwzorowana.
+- Import: konwerter nie ustawia jeszcze auto-szerokości (`autoW`/`fitText`) — wykrywa ją sondą i ostrzega; model i edycja są gotowe (5.7). Podgląd egui mierzy tekst galley'em egui (różnica względem przeglądarki rzędu pikseli).
 - Wybór języka nie ma jeszcze UI.
 - Grafiki z pliku: tylko obrazy (bez wideo); brak przeciągania plików na kanwę i wklejania ze schowka (plan: [PROPOZYCJE-FUNKCJI.md](PROPOZYCJE-FUNKCJI.md)); paczka elementu z plikami: [FORMAT-PACZKI.md](FORMAT-PACZKI.md) (projekt).

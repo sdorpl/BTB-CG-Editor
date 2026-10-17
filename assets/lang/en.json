@@ -508,5 +508,15 @@
   "media.read_error": "Cannot read \"{name}\": {err}",
   "media.big_warning": "Large image (> {mb} MB) makes the element file bigger; consider shrinking it.",
   "layers.add_image_file": "Image from file…",
-  "menu.file.add_image": "Add image from file…"
+  "menu.file.add_image": "Add image from file…",
+  "text.auto_w": "Auto width (background and icons follow the text)",
+  "text.auto_w.hover": "The layer width fits the text. Set background layers to \"Fit to text\".",
+  "text.min_w": "min w",
+  "text.max_w": "max w",
+  "fit.title": "Fit to text",
+  "fit.to": "Text layer",
+  "fit.mode.size": "Stretch",
+  "fit.mode.size.hover": "The layer width grows with the text (e.g. a bar background).",
+  "fit.mode.follow": "Follow",
+  "fit.mode.follow.hover": "The layer moves with the right edge of the text (e.g. an icon or dot)."
 }

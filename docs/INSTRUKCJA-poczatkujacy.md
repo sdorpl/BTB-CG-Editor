@@ -119,6 +119,7 @@ Alternatywnie wyślij element do serwera BTB-CG: **Plik → Wyślij do banku BTB
 | „Nie jest obsługiwanym obrazem” przy dodawaniu pliku | użyj PNG, JPEG, WebP, GIF, BMP lub SVG; typ sprawdzany jest po zawartości, nie po rozszerzeniu |
 | Warstwa się nie rusza | sprawdź kłódkę 🔒 przy warstwie |
 | Nie widać animacji | użyj ▶ IN; sprawdź, czy typ animacji nie jest *Brak* |
+| Tło belki nie dopasowuje się do tekstu | zaznacz warstwę tekstu → *Zaawansowane* → *Auto-szerokość*; potem zaznacz tło → *Zaawansowane* → *Dopasuj do tekstu* → wybierz tę warstwę (*Rozciągaj*; dla ikony *Przesuwaj*) |
 | Tekst jest ściśnięty | to „squash” – dopasowanie do szerokości; zmień szerokość warstwy lub sekcję *Ściskanie tekstu* |
 | „Brak renderera BTB-CG” przy Ctrl+P | zaimportuj coś z serwera albo ustaw `BTB_CG_DIR` na katalog BTB-CG |
 | Konwersja nie startuje | zainstaluj Node.js i wskaż poprawny katalog BTB-CG |

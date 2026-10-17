@@ -508,5 +508,15 @@
   "media.read_error": "Nie można wczytać „{name}”: {err}",
   "media.big_warning": "Duży obraz (> {mb} MB) powiększa plik elementu; rozważ zmniejszenie.",
   "layers.add_image_file": "Obraz z pliku…",
-  "menu.file.add_image": "Dodaj obraz z pliku…"
+  "menu.file.add_image": "Dodaj obraz z pliku…",
+  "text.auto_w": "Auto-szerokość (tło i ikony podążają za tekstem)",
+  "text.auto_w.hover": "Szerokość warstwy dopasowuje się do tekstu. Warstwy tła ustaw na „Dopasuj do tekstu”.",
+  "text.min_w": "min. szer.",
+  "text.max_w": "maks. szer.",
+  "fit.title": "Dopasuj do tekstu",
+  "fit.to": "Warstwa tekstu",
+  "fit.mode.size": "Rozciągaj",
+  "fit.mode.size.hover": "Szerokość warstwy rośnie razem z tekstem (np. tło belki).",
+  "fit.mode.follow": "Przesuwaj",
+  "fit.mode.follow.hover": "Warstwa przesuwa się za prawym brzegiem tekstu (np. ikona, kropka)."
 }

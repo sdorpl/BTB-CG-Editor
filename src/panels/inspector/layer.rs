@@ -20,6 +20,7 @@ pub fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
     }
     let id = selected[0].clone();
     let others: Vec<(String, String)> = scene.layers.iter().filter(|l| l.layer_type == LayerType::Shape && l.id != id).map(|l| (l.id.clone(), l.name.clone())).collect();
+    let auto_texts: Vec<(String, String)> = scene.layers.iter().filter(|l| l.layer_type == LayerType::Text && l.auto_w == Some(true) && l.id != id).map(|l| (l.id.clone(), l.name.clone())).collect();
     let frame = (scene.frame.w, scene.frame.h);
     let Some(layer) = scene.layers.iter_mut().find(|l| l.id == id) else { return };
     align::align_single(ui, layer, frame);
@@ -61,7 +62,7 @@ pub fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
     }
     // zaawansowane: rzadko używane ustawienia warstwy (na końcu, żeby nie wypychały podstawowych)
     let Some(layer) = el.scene.as_mut().and_then(|s| s.layers.iter_mut().find(|l| l.id == id)) else { return };
-    section(ui, "sec_advanced", tr("section.advanced"), false, |ui| advanced(ui, layer, &others));
+    section(ui, "sec_advanced", tr("section.advanced"), false, |ui| advanced(ui, layer, &others, &auto_texts));
 }
 
 /// Zaznaczonych kilka warstw: tylko wspólne pola (przesunięcie i krycie dla wszystkich).
@@ -88,7 +89,7 @@ fn fit_height(ui: &mut Ui, l: &mut Layer) {
     if (l.h - want_h).abs() > 0.5 && ui.small_button(trf("text.fit_h", &[("h", &want_h)])).clicked() { l.h = want_h; }
 }
 
-fn advanced(ui: &mut Ui, l: &mut Layer, shapes: &[(String, String)]) {
+fn advanced(ui: &mut Ui, l: &mut Layer, shapes: &[(String, String)], auto_texts: &[(String, String)]) {
     ui.horizontal(|ui| {
         ui.label(tr("layer.group"));
         let mut g = l.group.clone().unwrap_or_default();
@@ -102,6 +103,16 @@ fn advanced(ui: &mut Ui, l: &mut Layer, shapes: &[(String, String)]) {
         LayerType::Text => {
             let mut sq = l.squash.unwrap_or(false);
             if ui.checkbox(&mut sq, tr("text.squash")).changed() { l.squash = Some(sq); }
+            let mut aw = l.auto_w.unwrap_or(false);
+            if ui.checkbox(&mut aw, tr("text.auto_w")).on_hover_text(tr("text.auto_w.hover")).changed() { l.auto_w = if aw { Some(true) } else { None }; }
+            if aw {
+                ui.horizontal(|ui| {
+                    ui.label(tr("text.min_w")); let mut v = l.min_w.unwrap_or(0.0);
+                    if num_range(ui, &mut v, 1.0, 0.0, 10000.0).changed() { l.min_w = if v > 0.0 { Some(v) } else { None }; }
+                    ui.label(tr("text.max_w")); let mut v = l.max_w.unwrap_or(0.0);
+                    if num_range(ui, &mut v, 1.0, 0.0, 10000.0).changed() { l.max_w = if v > 0.0 { Some(v) } else { None }; }
+                });
+            }
         }
         LayerType::Image | LayerType::Video => {
             let cur = l.mask_layer.clone().unwrap_or_default();
@@ -115,6 +126,28 @@ fn advanced(ui: &mut Ui, l: &mut Layer, shapes: &[(String, String)]) {
             });
         }
         _ => {}
+    }
+    if l.layer_type != LayerType::Text && !auto_texts.is_empty() {
+        heading(ui, tr("fit.title"));
+        let cur = l.fit_text.clone();
+        let cur_name = cur.as_ref().and_then(|f| auto_texts.iter().find(|(id, _)| *id == f.to)).map(|(_, n)| n.clone()).unwrap_or_else(|| tr("common.none").into());
+        ui.horizontal(|ui| {
+            ui.label(tr("fit.to"));
+            egui::ComboBox::from_id_salt("fit_to").selected_text(cur_name).show_ui(ui, |ui| {
+                if ui.selectable_label(cur.is_none(), tr("common.none")).clicked() { l.fit_text = None; }
+                for (id, n) in auto_texts {
+                    if ui.selectable_label(cur.as_ref().is_some_and(|f| f.to == *id), n).clicked() {
+                        l.fit_text = Some(FitText { to: id.clone(), mode: cur.as_ref().map(|f| f.mode.clone()).unwrap_or_else(|| "size".into()) });
+                    }
+                }
+            });
+        });
+        if let Some(f) = l.fit_text.as_mut() {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut f.mode, "size".to_string(), tr("fit.mode.size")).on_hover_text(tr("fit.mode.size.hover"));
+                ui.selectable_value(&mut f.mode, "follow".to_string(), tr("fit.mode.follow")).on_hover_text(tr("fit.mode.follow.hover"));
+            });
+        }
     }
 }
 
