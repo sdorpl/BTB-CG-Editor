@@ -7,6 +7,38 @@ Aktualny kierunek prac: **funkcje i animacje wzorowane na After Effects** (klucz
 Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komentarze w kodzie zgodnie z otoczeniem
 (kod jest po angielsku, dokumenty po polsku).
 
+## Zacznij każdą sesję tutaj
+
+1. Przeczytaj `docs/STATUS.md` (bieżący etap, następne zadanie, blokery) oraz `git log -5` i `git status`.
+2. Przeczytaj zadanie w `docs/PROPOZYCJE-FUNKCJI.md` (lista i kolejność), a przy silniku `docs/PLAN-btb-motion.md`; przy zapisie/eksporcie `docs/FORMAT-PACZKI.md`.
+3. Przeczytaj `docs/LUKI.md`: każdy znany brak, uszeregowany. Niezawodność i wierność wyjścia (G1–G2) idą przed nowymi funkcjami.
+4. Przy funkcjach w stylu After Effects: odpowiedni moduł w `reference/effectcraft/` (patrz „Repozytorium referencyjne”).
+5. Pracuj samodzielnie wg „Styl pracy” i „Commity”; pytaj tylko, gdy decyzja należy do użytkownika. Po zmianie stanu zaktualizuj `docs/STATUS.md` w tym samym commicie.
+
+## Niepodważalne zasady
+
+**Najpierw przeczytaj [`AGENTS.md`](AGENTS.md); jego reguły mają pierwszeństwo nad tym plikiem** (nie wywalaj aplikacji, zasoby tylko na otwartych licencjach, clean-room).
+
+- **Nie wywalaj aplikacji:** nowy kod bez `unwrap()`/`expect()`/`panic!`, błędy przez `Result` i `?`, dane z pliku/serwera/importu traktuj jako wrogie (`get()`, NaN/inf, limity rozmiaru). Każda poprawka awarii ma test regresji.
+- **Parytet ze wzorcem:** `anim.rs`, `playback.rs`, `compile.rs` to wzorzec; `btb-motion` ma dawać te same wartości, nie „podobne” (zasady silnika niżej).
+- **Warstwy:** `btb-motion*` nie zależy od egui ani od modelu aplikacji; wszystko, co zna model, idzie do mostu w `src/`. Silnik buduje się także dla `wasm32-unknown-unknown`.
+- **Czas** w sekundach (`f32`), niezależnie od fps.
+- **Nie psuj edytora:** kod nieprzetestowany nie trafia do przełączników; nowe testy losowe na własnym LCG, bez nowych zależności.
+- **Teksty UI** tylko przez `i18n::tr`/`trf`, klucze w **obu** plikach `pl.json` i `en.json` w tym samym commicie.
+- **Dokumentacja** (`docs/DOKUMENTACJA.md`, `docs/INSTRUKCJA-poczatkujacy.md`) aktualizowana w commicie zmieniającym zachowanie aplikacji.
+- **Referencja EffectCraft:** adaptuj, nie kopiuj hurtem (MIT/Apache-2.0, przy większych fragmentach dopisz pochodzenie). Nie commituj `reference/`.
+- **Bramka jakości przed każdym commitem:** `make check` (fmt `btb-motion*`, clippy `-D warnings`, testy, WASM + parity, e2e). Nie uruchamiaj `make fmt` na całym `src/`.
+- **Commity:** jedna spójna zmiana = jeden commit, po polsku, tylko zielone stany, pliki dodawane jawnie. `git push` tylko na prośbę.
+- **Nie zmieniaj** `target-dir` w `.cargo/config.toml` (Nextcloud blokuje binarki build-script).
+
+## Uruchamianie i oglądanie aplikacji
+
+- Przy pracy nad UI **zobacz wynik**: `btb-cgeditor --open plik.json --shot out.png --frames 25 [--select N] [--graph] [--phase hold:0.3]` (okno otwiera się na chwilę), lub `make ui-shots` (scenariusze `tests/ui/scenarios.json`, wzorce `tests/ui/golden/`; wymaga wyświetlacza i Pillow).
+- Strona dla OBS: `btb-cgeditor --write-motion-html element.json output-motion.html`; zgodność z GSAP: `E2E_SET=e2e|e2e-matrix|e2e-text node tools/e2e-gsap-compare.js`.
+- Podgląd silnikiem btb-motion: `BTB_ENGINE=motion btb-cgeditor`; GPU: `--gpu auto|on|off`, `--renderer glow|wgpu`; język: `BTB_LANG=en`.
+- Zrzuty (`*.png`) są tymczasowe: trzymaj je poza gitem (np. w katalogu scratchpad).
+- Pełna lista komend: sekcja „Komendy” niżej.
+
 ## Struktura
 
 | Ścieżka | Rola |
@@ -22,6 +54,7 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 | `btb-motion-wasm/` | ten sam silnik jako WASM (C ABI, bez wasm-bindgen), cel `wasm32-unknown-unknown` |
 | `tools/` | `check.sh`, `build-wasm.sh`, testy Node/Playwright (parity WASM, e2e, zgodność z GSAP), `convert-quality.js` (jakość importu) |
 | `docs/DOKUMENTACJA.md`, `docs/INSTRUKCJA-poczatkujacy.md` | dokumentacja aplikacji i instrukcja dla początkujących, **aktualizowane przy każdym commicie zmieniającym aplikację** |
+| `AGENTS.md`, `docs/STATUS.md`, `docs/LUKI.md`, `docs/PROPOZYCJE-FUNKCJI.md` | reguły nienaruszalne; bieżący stan i następne zadanie; ranking znanych braków; lista funkcji do wdrożenia |
 | `docs/PLAN-btb-motion.md` | plan, decyzje projektowe i status faz silnika, **czytaj przed zmianami w silniku** |
 | `reference/effectcraft/` | repozytorium referencyjne (patrz niżej), poza gitem |
 
