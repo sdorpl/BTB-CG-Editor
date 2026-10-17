@@ -25,6 +25,9 @@ fn contains_local(inv: &Aff, p: Pos2, l: &Layer) -> bool {
 }
 
 #[derive(Clone, Copy)]
+pub(super) enum ElementHit { Scale, Rotate }
+
+#[derive(Clone, Copy)]
 pub(super) enum PathHit { Key(usize), Handle(usize, bool) }
 
 /// Stan widoku i zaznaczenia z początku klatki, potrzebny do przeliczeń ekran <-> ramka i do trafiania.
@@ -37,6 +40,8 @@ pub(super) struct Geo {
     pub frame: (f32, f32),
     /// skala elementu z layoutu
     pub scale: f32,
+    /// zaznaczony jest cały element (a nie jego warstwy)
+    pub element_sel: bool,
     /// jedyna zaznaczona warstwa (uchwyty i ścieżka działają tylko dla pojedynczego zaznaczenia)
     pub single: Option<Layer>,
     pub path_sel: Option<usize>,
@@ -53,6 +58,32 @@ impl Geo {
     pub fn frame_corners(&self) -> [Pos2; 4] {
         let (w, h) = self.frame;
         [Pos2::ZERO, Pos2::new(w, 0.0), Pos2::new(w, h), Pos2::new(0.0, h)].map(|q| self.view_aff.apply(q))
+    }
+
+    /// Uchwyty skali zaznaczonego elementu: prawy górny, prawy dolny i lewy dolny róg (lewy górny to punkt obrotu i skali).
+    pub fn element_scale_handles(&self) -> [Pos2; 3] {
+        let c = self.frame_corners();
+        [c[1], c[2], c[3]]
+    }
+
+    /// Uchwyt obrotu elementu: 26 px nad środkiem górnej krawędzi (w kierunku „góry" obróconej ramki).
+    pub fn element_rotate_handle(&self) -> (Pos2, Pos2) {
+        let c = self.frame_corners();
+        let mid = c[0] + (c[1] - c[0]) * 0.5;
+        let dir = (c[1] - c[0]).normalized();
+        let dir = if dir.x.is_nan() { Vec2::new(1.0, 0.0) } else { dir };
+        (mid, mid + Vec2::new(dir.y, -dir.x) * 26.0)
+    }
+
+    pub fn inside_frame(&self, p: Pos2) -> bool {
+        let f = self.to_frame(p);
+        f.x >= 0.0 && f.y >= 0.0 && f.x <= self.frame.0 && f.y <= self.frame.1
+    }
+
+    pub fn pick_element(&self, p: Pos2) -> Option<ElementHit> {
+        if !self.element_sel || self.editing || self.playing { return None; }
+        if self.element_rotate_handle().1.distance(p) < 9.0 { return Some(ElementHit::Rotate); }
+        self.element_scale_handles().iter().any(|h| h.distance(p) < 8.0).then_some(ElementHit::Scale)
     }
 
     pub fn layer_to_screen(&self, l: &Layer) -> Aff { self.view_aff.mul(static_aff(l, self.frame)) }

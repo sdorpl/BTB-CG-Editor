@@ -43,6 +43,9 @@ pub(super) fn draw_guides(painter: &Painter, st: &CanvasState, rect: Rect, geo: 
     let line = |a: Pos2, b: Pos2| painter.line_segment([geo.view_aff.apply(a), geo.view_aff.apply(b)], Stroke::new(1.0, col));
     // długie odcinki w układzie ramki wypełniają widok także przy skali i obrocie elementu
     let far = (rect.width() + rect.height()) / st.zoom.max(0.01) * 4.0 / geo.scale.max(0.01);
+    // prowadnice przyciągania elementu do pola: współrzędne pola, rysowane przez cały widok
+    for gx in &st.field_guides_x { painter.vline(geo.view.to_screen(Pos2::new(*gx, 0.0)).x, rect.y_range(), Stroke::new(1.0, col)); }
+    for gy in &st.field_guides_y { painter.hline(rect.x_range(), geo.view.to_screen(Pos2::new(0.0, *gy)).y, Stroke::new(1.0, col)); }
     for gx in &st.guides_x { line(Pos2::new(*gx, -far), Pos2::new(*gx, far)); }
     for gy in &st.guides_y { line(Pos2::new(-far, *gy), Pos2::new(far, *gy)); }
 }
@@ -110,4 +113,24 @@ pub(super) fn draw_marquee(painter: &Painter, st: &CanvasState) {
 pub(super) fn draw_labels(painter: &Painter, field_rect: Rect, frame_top_left: Pos2, frame: (f32, f32)) {
     painter.text(field_rect.left_top() + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, "1920 × 1080", egui::FontId::monospace(10.0), Color32::from_gray(110));
     painter.text(frame_top_left + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, crate::i18n::trf("canvas.frame_label", &[("w", &frame.0.round()), ("h", &frame.1.round())]), egui::FontId::monospace(10.0), YELLOW);
+}
+
+/// Zaznaczony cały element: obrys ramki (po skali i obrocie), uchwyty skali na trzech narożnikach, uchwyt obrotu nad
+/// górną krawędzią (lewy górny róg to punkt obrotu i skali) oraz etykieta ze skalą, obrotem i położeniem.
+pub(super) fn draw_element_selection(painter: &Painter, geo: &Geo, layout: &crate::model::Layout) {
+    if !geo.element_sel { return; }
+    let c = geo.frame_corners();
+    painter.add(Shape::closed_line(c.to_vec(), Stroke::new(1.5, YELLOW)));
+    for h in geo.element_scale_handles() {
+        let r = Rect::from_center_size(h, Vec2::splat(9.0));
+        painter.rect_filled(r, 1.0, Color32::WHITE);
+        painter.rect_stroke(r, 1.0, Stroke::new(1.5, YELLOW));
+    }
+    painter.circle(c[0], 4.0, YELLOW, Stroke::new(1.0, Color32::from_gray(30)));
+    let (mid, rh) = geo.element_rotate_handle();
+    painter.line_segment([mid, rh], Stroke::new(1.0, YELLOW));
+    painter.circle(rh, 5.0, Color32::WHITE, Stroke::new(1.5, YELLOW));
+    let (x, y) = layout.frame_origin(geo.frame.0, geo.frame.1);
+    let lab = format!("{:.0}%  {:.1}°  ({}, {})", layout.scale * 100.0, layout.rotation, x.round(), y.round());
+    painter.text(c[3] + (c[2] - c[3]) * 0.5 + Vec2::new(0.0, 16.0), egui::Align2::CENTER_TOP, lab, egui::FontId::monospace(10.5), YELLOW);
 }

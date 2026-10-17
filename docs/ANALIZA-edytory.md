@@ -111,6 +111,12 @@ Symulowane zdarzenia egui dla nakładki ścieżki: widoczność kluczy/uchwytów
 
 Kolejność: 1 → 2 → 3 → 5 → 4, potem 6–8.
 
+**Zrobione:** 1 (podział na moduły `src/canvas/`), 2 (testy narzędzi), 3 (przyciąganie do pudełka po obrocie).
+Dodatkowo: **zaznaczanie całego elementu** (wiersz „Element" w panelu warstw albo klik w puste miejsce ramki; `selected == ["element"]`):
+przesuwanie ramki na wizji (`Layout::move_by`, zachowuje kotwicę; z przyciąganiem do pola, Shift blokuje oś, Alt wyłącza),
+skala uchwytami narożnymi i obrót uchwytem nad górną krawędzią (oba względem lewego górnego rogu, jak na stronie wyjściowej),
+a kanwa rysuje element ze skalą i obrotem z layoutu. Inspektor pokazuje wtedy rozmiar ramki i layout (z nowym polem obrotu).
+
 ---
 
 ## 3. Wspólne wnioski

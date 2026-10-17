@@ -654,7 +654,6 @@ impl CgEditorApp {
                 });
                 return;
             }
-            let fo = { let s = self.element.scene.as_ref().unwrap(); self.element.layout.frame_origin(s.frame.w, s.frame.h) };
             let title = self.element.title.clone();
             let fields = self.element.fields.clone();
             let extra = self.element.extra.clone();
@@ -673,10 +672,7 @@ impl CgEditorApp {
             // zaznaczony klucz ścieżki: oś czasu jest źródłem prawdy, kanwa może go zmienić kliknięciem
             self.canvas.path_sel = self.timeline.sel.iter().find(|k| k.prop == timeline::PATH && self.selected.len() == 1 && self.selected[0] == k.layer).map(|k| k.idx);
             let scene = self.element.scene.as_mut().unwrap();
-            let out = canvas::draw_canvas(ui, &mut self.canvas, scene, &mut self.selected, DrawInputs {
-                frame_origin: fo,
-                frame_scale: self.element.layout.scale,
-                frame_rotation: self.element.layout.rotation,
+            let out = canvas::draw_canvas(ui, &mut self.canvas, scene, &mut self.element.layout, &mut self.selected, DrawInputs {
                 sp: SceneParamsBuilder { elem_tr, fx: &fx, values, time: ui.input(|i| i.time), playing: self.playback.active(), badge_squash: self.element.elem_type == "BADGE" },
             });
             edited = out.edited_text;

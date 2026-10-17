@@ -9,7 +9,8 @@ mod tools;
 mod view;
 
 use crate::anim::Transform;
-use crate::model::Scene;
+use crate::model::{Layout, Scene};
+use crate::motion_bridge::ELEMENT;
 use crate::render::{self, SceneParams, View};
 use egui::{Pos2, Rect, Sense, Ui, Vec2};
 use hit::Geo;
@@ -31,6 +32,9 @@ pub struct CanvasState {
     drag: Option<Drag>,
     guides_x: Vec<f32>,
     guides_y: Vec<f32>,
+    /// prowadnice przyciągania elementu do pola (współrzędne pola, nie ramki)
+    field_guides_x: Vec<f32>,
+    field_guides_y: Vec<f32>,
     marquee: Option<Rect>,
     pub editing: Option<String>,
     edit_buf: String,
@@ -47,7 +51,7 @@ pub struct CanvasState {
 impl Default for CanvasState {
     fn default() -> Self {
         Self { zoom: 0.5, pan: Vec2::ZERO, bg: Bg::Checker, safe_areas: true, snap: true, needs_fit: true, needs_fit_frame: false, last_rect: Rect::NOTHING, drag: None,
-               guides_x: vec![], guides_y: vec![], marquee: None, editing: None, edit_buf: String::new(), edit_fresh: false, path_sel: None, path_picked: None, overlay_keys: vec![], overlay_handles: vec![] }
+               guides_x: vec![], guides_y: vec![], field_guides_x: vec![], field_guides_y: vec![], marquee: None, editing: None, edit_buf: String::new(), edit_fresh: false, path_sel: None, path_picked: None, overlay_keys: vec![], overlay_handles: vec![] }
     }
 }
 
@@ -73,10 +77,6 @@ impl CanvasState {
 }
 
 pub struct DrawInputs<'a> {
-    pub frame_origin: (f32, f32),
-    /// skala i obrót elementu z layoutu (względem lewego górnego rogu ramki)
-    pub frame_scale: f32,
-    pub frame_rotation: f32,
     pub sp: SceneParamsBuilder<'a>,
 }
 
@@ -96,6 +96,7 @@ pub fn draw_canvas(
     ui: &mut Ui,
     st: &mut CanvasState,
     scene: &mut Scene,
+    layout: &mut Layout,
     selected: &mut Vec<String>,
     inputs: DrawInputs,
 ) -> CanvasOut {
@@ -107,7 +108,7 @@ pub fn draw_canvas(
     st.overlay_keys.clear();
     st.overlay_handles.clear();
     let frame = (scene.frame.w, scene.frame.h);
-    let fo = inputs.frame_origin;
+    let fo = layout.frame_origin(frame.0, frame.1);
     let mut out = CanvasOut { edited_text: None, interacting: false };
 
     if st.needs_fit && rect.width() > 50.0 {
@@ -122,11 +123,11 @@ pub fn draw_canvas(
     let space = view::navigate(ui, st, rect, &response);
     let view = View { origin: rect.min + st.pan, zoom: st.zoom };
     let single = if selected.len() == 1 { scene.layers.iter().find(|l| l.id == selected[0]).cloned() } else { None };
-    let frame_aff = render::frame_aff(fo, inputs.frame_scale, inputs.frame_rotation);
-    let geo = Geo { view, frame_aff, view_aff: view.aff().mul(frame_aff), scale: inputs.frame_scale, frame, single, path_sel: st.path_sel, editing: st.editing.is_some(), playing: inputs.sp.playing };
+    let frame_aff = render::frame_aff(fo, layout.scale, layout.rotation);
+    let geo = Geo { view, frame_aff, view_aff: view.aff().mul(frame_aff), scale: layout.scale, element_sel: selected.len() == 1 && selected[0] == ELEMENT, frame, single, path_sel: st.path_sel, editing: st.editing.is_some(), playing: inputs.sp.playing };
 
     if st.editing.is_none() && !inputs.sp.playing {
-        tools::interact(ui, st, &geo, scene, selected, &response, space, &mut out);
+        tools::interact(ui, st, &geo, scene, layout, selected, &response, space, &mut out);
     }
 
     // ── rysowanie ──
@@ -144,6 +145,7 @@ pub fn draw_canvas(
     render::draw_scene(&painter.with_clip_rect(rect), &ctx, &view, &sp);
     overlay::draw_guides(&painter, st, rect, &geo);
     if !inputs.sp.playing {
+        overlay::draw_element_selection(&painter, &geo, layout);
         overlay::draw_selection(&painter, &geo, scene, selected, st.editing.is_some());
         if st.editing.is_none() { overlay::draw_path(&painter, st, &geo, scene); }
     }
@@ -151,6 +153,8 @@ pub fn draw_canvas(
     text::edit_overlay(ui, st, scene, &geo, rect, &mut out);
     if !inputs.sp.playing && st.editing.is_none() { text::add_bar(ui, st, scene, selected, rect, &mut out); }
     overlay::draw_labels(&painter, field_rect, frame_tl, frame);
+    // cały element wyklucza zaznaczenie warstw (Shift/Ctrl na warstwie dokłada tylko warstwy)
+    if selected.len() > 1 { selected.retain(|s| s != ELEMENT); }
     out
 }
 
@@ -201,12 +205,12 @@ mod tests {
             let title = el.title.clone();
             let fields = el.fields.clone();
             let extra = el.extra.clone();
-            let fo = el.layout.frame_origin(el.scene.as_ref().unwrap().frame.w, el.scene.as_ref().unwrap().frame.h);
+            let layout = &mut el.layout;
             let scene = el.scene.as_mut().unwrap();
             let _ = ctx.run(raw, |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let values = render::Values { title: &title, fields: &fields, extra: &extra, base_url: "" };
-                    draw_canvas(ui, st, scene, selected, DrawInputs { frame_origin: fo, frame_scale: el.layout.scale, frame_rotation: el.layout.rotation, sp: SceneParamsBuilder { elem_tr: Transform::default(), fx: &fx, values, time: 0.0, playing: false, badge_squash: false } });
+                    draw_canvas(ui, st, scene, layout, selected, DrawInputs { sp: SceneParamsBuilder { elem_tr: Transform::default(), fx: &fx, values, time: 0.0, playing: false, badge_squash: false } });
                 });
             });
         }
@@ -389,6 +393,119 @@ mod tests {
         // ekran -> pole dzieli przez zoom, pole -> ramka przez skalę 2
         assert!((l.x - l0.x - (d.x / c.st.zoom / 2.0).round()).abs() <= 1.0, "x: {} -> {}", l0.x, l.x);
         assert!((l.y - l0.y - (d.y / c.st.zoom / 2.0).round()).abs() <= 1.0, "y: {} -> {}", l0.y, l.y);
+    }
+
+    /// Mała warstwa w rogu ramki, żeby reszta ramki była pusta; zaznaczony cały element.
+    fn element_selected() -> C {
+        let mut c = C::plain();
+        {
+            let l = &mut c.el.scene.as_mut().unwrap().layers[0];
+            l.x = 0.0;
+            l.y = 0.0;
+            l.w = 20.0;
+            l.h = 10.0;
+        }
+        c.el.layout.side = "custom".into();
+        c.el.layout.x = Some(100.0);
+        c.el.layout.y = Some(300.0);
+        c.selected = vec![ELEMENT.to_string()];
+        c.frame(vec![]);
+        c.frame(vec![]);
+        c
+    }
+
+    fn frame_size(c: &C) -> (f32, f32) { let f = &c.el.scene.as_ref().unwrap().frame; (f.w, f.h) }
+
+    #[test]
+    fn clicking_empty_space_in_the_frame_selects_the_whole_element() {
+        let mut c = C::plain();
+        {
+            let l = &mut c.el.scene.as_mut().unwrap().layers[0];
+            l.w = 20.0;
+            l.h = 10.0;
+        }
+        c.frame(vec![]);
+        let (fw, fh) = frame_size(&c);
+        c.press_release(c.screen(fw - 10.0, fh - 10.0));
+        assert_eq!(c.selected, vec![ELEMENT.to_string()]);
+        // poza ramką zaznaczenie jest czyszczone
+        c.press_release(c.st.last_rect.min + c.st.pan + Vec2::new(4.0, 4.0));
+        assert!(c.selected.is_empty());
+    }
+
+    #[test]
+    fn dragging_the_selected_element_moves_its_layout_not_the_layers() {
+        let mut c = element_selected();
+        let (fw, fh) = frame_size(&c);
+        let layer0 = (c.layer().x, c.layer().y);
+        let from = c.screen(fw - 10.0, fh - 10.0);
+        let d = Vec2::new(60.0, 30.0);
+        c.drag(from, from + d);
+        let lo = &c.el.layout;
+        assert!((lo.x.unwrap() - 100.0 - (d.x / c.st.zoom).round()).abs() <= 1.0, "x = {:?}", lo.x);
+        assert!((lo.y.unwrap() - 300.0 - (d.y / c.st.zoom).round()).abs() <= 1.0, "y = {:?}", lo.y);
+        assert_eq!((c.layer().x, c.layer().y), layer0);
+        assert_eq!(c.selected, vec![ELEMENT.to_string()], "zaznaczenie zostaje przy elemencie");
+    }
+
+    #[test]
+    fn moving_an_anchored_element_changes_margins() {
+        let mut c = element_selected();
+        c.el.layout.side = "bottom-right".into();
+        c.el.layout.margin_x = 50.0;
+        c.el.layout.margin_y = 50.0;
+        c.frame(vec![]);
+        let (fw, fh) = frame_size(&c);
+        let from = c.screen(fw - 10.0, fh - 10.0);
+        let o0 = c.el.layout.frame_origin(fw, fh);
+        c.drag(from, from + Vec2::new(-80.0, -40.0));
+        assert_eq!(c.el.layout.side, "bottom-right");
+        let o1 = c.el.layout.frame_origin(fw, fh);
+        assert!(o1.0 < o0.0 && o1.1 < o0.1, "{o0:?} -> {o1:?}");
+    }
+
+    #[test]
+    fn the_corner_handle_scales_the_element_around_its_top_left() {
+        let mut c = element_selected();
+        let (fw, fh) = frame_size(&c);
+        let origin = c.el.layout.frame_origin(fw, fh);
+        let handle = c.screen(fw, fh);
+        c.drag(handle, handle + Vec2::new(60.0, 30.0));
+        let lo = &c.el.layout;
+        assert!(lo.scale > 1.05, "scale = {}", lo.scale);
+        assert_eq!(lo.frame_origin(fw, fh), origin, "lewy górny róg stoi w miejscu");
+    }
+
+    #[test]
+    fn the_rotate_handle_rotates_the_element_around_its_top_left() {
+        let mut c = element_selected();
+        let (fw, _) = frame_size(&c);
+        let pivot = c.screen(0.0, 0.0);
+        let handle = c.screen(fw / 2.0, 0.0) + Vec2::new(0.0, -26.0);
+        let start = (handle - pivot).angle().to_degrees();
+        // kursor pionowo pod punktem obrotu = kąt 90°
+        c.drag(handle, pivot + Vec2::new(0.0, 200.0));
+        let r = c.el.layout.rotation;
+        assert!((r - (90.0 - start)).abs() < 1.0, "rotation = {r}, start = {start}");
+    }
+
+    #[test]
+    fn element_move_snaps_to_the_field_edge() {
+        let mut c = element_selected();
+        c.st.snap = true;
+        let (fw, fh) = frame_size(&c);
+        let from = c.screen(fw - 10.0, fh - 10.0);
+        // lewa krawędź ramki 3 px od krawędzi pola
+        c.drag(from, from + Vec2::new(-97.0 * c.st.zoom, 0.0));
+        assert_eq!(c.el.layout.x, Some(0.0));
+    }
+
+    #[test]
+    fn clicking_a_layer_while_the_element_is_selected_selects_the_layer() {
+        let mut c = element_selected();
+        let l0 = c.layer();
+        c.press_release(c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0));
+        assert_eq!(c.selected, vec![l0.id.clone()]);
     }
 
     #[test]
