@@ -12,6 +12,7 @@ Język pracy z użytkownikiem i dokumentacji: **polski**. Identyfikatory i komen
 | Ścieżka | Rola |
 |---|---|
 | `src/` | aplikacja (egui): `app.rs`, `canvas.rs` (z nakładką ścieżki ruchu), `model.rs`, `render.rs`, `compile.rs`, `importer.rs`, `panels/` (inspector, layers, `timeline.rs` = oś czasu z kluczami, `graph.rs` = edytor krzywych) |
+| `src/i18n.rs`, `assets/lang/{pl,en}.json` | tłumaczenia UI (patrz „Tłumaczenia”) |
 | `src/anim.rs`, `src/playback.rs` | **wzorzec referencyjny** animacji (port GSAP z BTB-CG) |
 | `src/motion_bridge.rs` | most `ElementAnimation -> Director` (po stronie aplikacji) |
 | `src/keyconv.rs` | konwersja presetów IN/OUT na klucze (`convert_presets`), `Scope::{All, Element, Layer}` |
@@ -105,7 +106,23 @@ Dalej (z planu): Local Stop z osobnym czasem per Director; ekspresje; ewentualni
 - Pisz kod zgodny z otoczeniem (gęstość komentarzy, nazewnictwo, idiomy). `make check` sprawdza formatowanie tylko w `btb-motion*`; `src/` ma dłuższe linie, więc nie uruchamiaj `make fmt` (`cargo fmt --all`) na całości bez zgody.
 - Nie rozszerzaj zakresu poza prośbę; po zmianie uruchom `make check` (lub jego odpowiedni fragment) i podaj wynik zgodnie z prawdą.
 
+## Commity (agent w chmurze)
+
+- Po **każdej** zmianie w kodzie (i dokumentacji) zakończonej na zielono zrób commit, zanim przejdziesz do następnej zmiany. Jedna spójna zmiana = jeden commit; nie zostawiaj niezacommitowanej pracy na koniec sesji.
+- Przed commitem uruchom `make check` (lub jego odpowiedni fragment, np. `cargo test -p btb-motion`) i napraw błędy w tej samej zmianie. Nie commituj czerwonych testów; jeśli czegoś nie dało się zweryfikować (np. brak Playwright), napisz to w treści commita.
+- Dodawaj pliki jawnie (`git add ścieżka…`), nie `git add -A`/`git add .`. Nie commituj: `reference/`, `vendor/` (jeśli nie jest częścią zmiany), plików tymczasowych, artefaktów builda, zrzutów (`*.png` z `--shot`) ani cudzych, niezwiązanych zmian z drzewa roboczego. Sprawdź `git status` i `git diff --staged` przed `git commit`.
+- Nie używaj `--no-verify`, `--amend` na już istniejących commitach ani `git push --force`. Nie przepisuj historii. `git push` tylko na wyraźną prośbę użytkownika.
+- Komunikat: pierwsza linia w trybie rozkazującym, do ok. 72 znaków, po polsku (np. „Dodaj zoom osi czasu”), z opcjonalnym opisem „dlaczego” po pustej linii. Na końcu wiersz atrybucji wymagany przez środowisko (`Co-Authored-By: …`).
+- Zmiany w jednej warstwie trzymaj razem, ale oddzielaj commity: silnik (`btb-motion*`), UI (`src/`), tłumaczenia/dokumentacja. Zmiany w `motion_bridge::to_transforms` i `assets/btb-motion-player.js` idą w jednym commicie (patrz „Klucze użytkownika”).
+- Nowy klucz tłumaczenia dodany do `pl.json` i `en.json` idzie w tym samym commicie co kod, który go używa.
+
 ## Ściskanie tekstu (squash)
 - Zasada jak w `renderer.js` `applyGlobalSquashing`: domyślnie dopasowanie do szerokości pudełka; BADGE (`data-squash-mode=length`) → skala `max(0.5, 25/długość)` dla >25 znaków, kotwica z lewej. Zaimplementowane w `render::squash_factor` (edytor, `SceneParams.badge_squash`) i `P.squash` w `assets/btb-motion-player.js` (`cfg.squash`).
 - Konwerter (`convert-bridge.js`, blok `squashed`) dla BADGE zachowuje pełną szerokość układu warstwy i lewą krawędź oryginału; elementy skonwertowane przed tą zmianą wymagają ponownej konwersji.
 - `convert-quality` renderuje kod bez sceny (`renderForMeasure` usuwa `scene`), więc przy tekstach ściskanych pokazuje podwójne ściskanie — to artefakt narzędzia, nie runtime.
+
+## Tłumaczenia (PL / EN)
+- Wszystkie teksty UI idą przez `i18n::tr("klucz")` / `trf("klucz", &[("arg", &wartość)])` (`{arg}` w tekście); etykiety list rozwijanych przez `panels::combo_t` (`i18n::opt("opt.anim", wartość)`), wartość zapisana w pliku zostaje techniczna. Pliki: `assets/lang/pl.json`, `assets/lang/en.json` (płaskie mapy, wkompilowane `include_str!`). Brak klucza → polski → sam klucz.
+- Nowy napis: dodaj klucz do **obu** plików. Testy `i18n::tests` pilnują: te same klucze w obu językach, te same `{argumenty}`, każdy literał `tr("…")` z kodu istnieje, listy opcji (`ANIM_TYPES`, `TEXT_IN`…) mają etykiety.
+- Wybór języka nie ma jeszcze UI: `i18n::set_lang`, tymczasowo zmienna `BTB_LANG=en`. Domyślnie polski.
+- Nie tłumaczone: komunikaty z `tools/convert-bridge.js` (notatki konwersji, po polsku), nazwy easingów GSAP, logi testów, komentarze w kodzie.
