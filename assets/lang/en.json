@@ -99,6 +99,7 @@
   "importer.rejected": "The server rejected the element ({code}): {err}",
   "importer.bad_response": "Invalid server response: {err}",
   "importer.pushed": "Sent to {target}: {added} added, {updated} updated.",
+  "importer.deferred": "{count} element(s) on air — the new version waits until it leaves air (or use \"Apply now\" in the panel).",
   "importer.target_bank": "the bank",
   "importer.target_library": "the library",
   "preview.no_renderer": "BTB-CG renderer not found: import something from the server (File → Import from BTB-CG…) or set BTB_CG_DIR to the repository folder.",

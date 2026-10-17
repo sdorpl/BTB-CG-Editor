@@ -99,6 +99,7 @@
   "importer.rejected": "Serwer odrzucił element ({code}): {err}",
   "importer.bad_response": "Błędna odpowiedź serwera: {err}",
   "importer.pushed": "Wysłano do {target}: dodano {added}, zaktualizowano {updated}.",
+  "importer.deferred": "{count} el. jest na wizji — nowa wersja czeka na zejście z wizji (albo „Wdróż teraz” w panelu).",
   "importer.target_bank": "banku",
   "importer.target_library": "biblioteki",
   "preview.no_renderer": "Brak renderera BTB-CG: zaimportuj coś z serwera (Plik → Importuj z BTB-CG…) albo ustaw zmienną BTB_CG_DIR na katalog repozytorium.",

@@ -453,6 +453,23 @@ pub fn recompile(el: &mut Element) {
 mod parity_tests {
     use super::*;
 
+    fn motions_line(js: &str) -> Option<&str> { js.lines().find(|l| l.trim_start().starts_with("const motions = ")) }
+    fn strip_motions(js: &str) -> String { js.lines().filter(|l| !l.trim_start().starts_with("const motions = ")).collect::<Vec<_>>().join("\n") }
+    fn json_close(a: &serde_json::Value, b: &serde_json::Value) -> bool {
+        use serde_json::Value::*;
+        match (a, b) {
+            (Number(x), Number(y)) => (x.as_f64().unwrap_or(0.0) - y.as_f64().unwrap_or(1.0)).abs() < 1e-3,
+            (Array(x), Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| json_close(p, q)),
+            (Object(x), Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| json_close(v, w))),
+            _ => a == b,
+        }
+    }
+    fn motions_equal(a: &str, b: &str) -> bool {
+        let parse = |js: &str| motions_line(js).and_then(|l| l.split_once('=')).map(|(_, r)| r.trim().trim_end_matches(';').to_string())
+            .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok());
+        match (parse(a), parse(b)) { (Some(x), Some(y)) => json_close(&x, &y), (None, None) => true, _ => false }
+    }
+
     /// Kod wygenerowany przez kompilator w Rust musi być taki sam jak z `SceneModel.applyToElement`
     /// w BTB-CG (ten sam element ze `templates/` → te same html/css/js/ocgInputs).
     #[test]
@@ -471,10 +488,13 @@ mod parity_tests {
             let loaded = crate::importer::parse_elements(&text).unwrap();
             let mut el = loaded.into_iter().map(|l| l.element).find(|e| Some(e.id.as_str()) == item["id"].as_str()).unwrap();
             recompile(&mut el);
+            // `const motions = [...]`: porównujemy jako wartości JSON (Rust zapisuje 0.0, JS 0; f32 vs f64) z tolerancją
+            let (mine_js, theirs_js) = (strip_motions(&el.js_template), strip_motions(item["js"].as_str().unwrap_or("")));
+            if !motions_equal(&el.js_template, item["js"].as_str().unwrap_or("")) { diffs.push(format!("{file} motions differ")); }
             for (name, mine, theirs) in [
                 ("html", el.html_template.as_str(), item["html"].as_str().unwrap_or("")),
                 ("css", el.css_template.as_str(), item["css"].as_str().unwrap_or("")),
-                ("js", el.js_template.as_str(), item["js"].as_str().unwrap_or("")),
+                ("js", mine_js.as_str(), theirs_js.as_str()),
             ] {
                 if mine != theirs {
                     let at = mine.chars().zip(theirs.chars()).position(|(a, b)| a != b).unwrap_or(mine.len().min(theirs.len()));

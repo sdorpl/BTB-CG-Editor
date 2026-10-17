@@ -104,6 +104,8 @@ pub fn push_blocking(base: &str, target: PushTarget, element: &Element) -> Resul
     let v: Value = serde_json::from_str(&resp.into_string().map_err(|e| e.to_string())?).map_err(|e| trf("importer.bad_response", &[("err", &e)]))?;
     let n = |k: &str| v.get(k).and_then(|x| x.as_array()).map_or(0, |a| a.len());
     let mut msg = trf("importer.pushed", &[("target", &tr(if target == PushTarget::Bank { "importer.target_bank" } else { "importer.target_library" })), ("added", &n("added")), ("updated", &n("updated"))]);
+    // element na wizji nie jest podmieniany w trakcie emisji — jego nowa wersja czeka w kolejce serwera
+    if n("deferred") > 0 { msg.push_str(&format!(" {}", trf("importer.deferred", &[("count", &n("deferred"))]))); }
     if let Some(w) = v.get("warnings").and_then(|x| x.as_array()) {
         for item in w {
             for t in item.get("warnings").and_then(|x| x.as_array()).into_iter().flatten().filter_map(|x| x.as_str()) { msg.push_str(&format!(" ⚠ {t}")); }
