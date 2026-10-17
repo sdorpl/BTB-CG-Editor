@@ -1,0 +1,31 @@
+{
+  "_exportVersion": 3,
+  "elements": [
+    {
+      "id": "ui_fixture",
+      "name": "UI fixture",
+      "type": "LOWER_THIRD",
+      "title": "Tytuł testowy",
+      "animation": {
+        "in": { "type": "slide", "direction": "left", "duration": 0.5, "delay": 0, "ease": "power2.out" },
+        "out": { "type": "fade", "direction": "left", "duration": 0.3, "delay": 0, "ease": "power2.in" }
+      },
+      "scene": {
+        "version": 1,
+        "detached": false,
+        "frame": { "w": 900, "h": 220 },
+        "layers": [
+          { "id": "bg", "type": "shape", "name": "Tło", "x": 0, "y": 0, "w": 900, "h": 220, "radius": 12,
+            "fill": { "type": "gradient", "color": "#0a1a5c", "color2": "#1d4ed8", "angle": 160 },
+            "stroke": { "color": "#ffffff", "width": 0 }, "effect": "none", "shadow": false },
+          { "id": "title", "type": "text", "name": "Tytuł", "x": 40, "y": 30, "w": 820, "h": 70,
+            "field": "TITLE", "defaultText": "Tytuł testowy", "text": "",
+            "font": { "family": "Liberation Sans", "size": 56, "weight": "700", "color": "#ffffff", "align": "left", "valign": "middle", "lineHeight": 1.0, "letterSpacing": 0, "italic": false, "transform": "none", "shadow": "none" } },
+          { "id": "sub", "type": "text", "name": "Podtytuł (stały)", "x": 40, "y": 120, "w": 820, "h": 50,
+            "text": "Podtytuł stały", "defaultText": "",
+            "font": { "family": "Liberation Sans", "size": 36, "weight": "400", "color": "#facc15", "align": "left", "valign": "middle", "lineHeight": 1.0, "letterSpacing": 0, "italic": true, "transform": "none", "shadow": "none" } }
+        ]
+      }
+    }
+  ]
+}

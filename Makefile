@@ -1,5 +1,5 @@
 # Automatyzacja: `make check` uruchamia wszystko, co weryfikuje projekt.
-.PHONY: check fmt lint test wasm parity e2e convert-quality
+.PHONY: check fmt lint test wasm parity e2e convert-quality ui-shots
 check:
 	./tools/check.sh
 fmt:
@@ -33,3 +33,6 @@ package-windows:
 	./tools/package.sh windows
 package-macos:
 	./tools/package.sh macos
+
+ui-shots:
+	python3 tools/ui-shots.py

@@ -1,0 +1,14 @@
+{
+  "fixture": "tests/ui/fixture.json",
+  "ignore_bottom": 30,
+  "tolerance": { "pixel": 24, "max_diff_ratio": 0.002 },
+  "scenarios": [
+    { "name": "idle",         "args": ["--frames", "20"] },
+    { "name": "hold",         "args": ["--frames", "25", "--phase", "hold:0.3"] },
+    { "name": "in_midway",    "args": ["--frames", "25", "--phase", "in:0.25"] },
+    { "name": "select_title", "args": ["--frames", "20", "--select", "1"] },
+    { "name": "select_shape", "args": ["--frames", "20", "--select", "0"] },
+    { "name": "graph",        "args": ["--frames", "25", "--graph", "--convert-keys", "--phase", "hold:0.3"] },
+    { "name": "fit_frame",    "args": ["--frames", "20", "--fit-frame"] }
+  ]
+}
