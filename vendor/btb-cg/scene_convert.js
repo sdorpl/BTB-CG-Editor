@@ -161,6 +161,7 @@
         g.visible = true;
         g.layout = { ...(el.layout || {}), rotation: 0 };
         delete g.scene;                 // renderujemy kod, nie scenę
+        delete g.motion;                // pomiar układu spoczynkowego: bez silnika WASM
         if (!g.title && !g.titleHtml && !(g.fields && g.fields.TITLE)) g.title = 'JAN KOWALSKI';
         if (!g.subtitle && (el.ocgInputs || []).some(i => i.id === 'SUBTITLE')) g.subtitle = 'Ekspert ds. Mediów';
         if (g.layout.width === undefined && g.layout.height === undefined) { /* bez zmian — renderer sam przyjmuje domyślne */ }

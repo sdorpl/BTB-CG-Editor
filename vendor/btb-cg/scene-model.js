@@ -21,9 +21,13 @@
     const RESERVED_TOP = { TITLE: 'title', SUBTITLE: 'subtitle' };
 
     const clone = (o) => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));
-    const num = (v, d) => (v === undefined || v === null || v === '' || isNaN(Number(v)) ? d : Number(v));
+    // zaokrąglenie do 3 miejsc (jak `fmt` w compile.rs edytora): szum f32 z edytora (18.200000762939453) nie trafia do kodu
+const num = (v, d) => (v === undefined || v === null || v === '' || isNaN(Number(v)) ? d : Math.round(Number(v) * 1000) / 1000);
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const cssStr = (s) => String(s ?? '').replace(/['"\\;{}<>]/g, '');
+    // liczby w specyfikacjach ruchu (delay/duration…) bez szumu f32 z edytora
+const roundDeep = (v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : Array.isArray(v) ? v.map(roundDeep)
+    : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, roundDeep(x)])) : v);
+const cssStr = (s) => String(s ?? '').replace(/['"\\;{}<>]/g, '');
     const fieldId = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/^(\d)/, '_$1');
 
     // ── Domyślne wartości ───────────────────────────────────────────────────────
@@ -88,7 +92,8 @@
         s.frame = { w: num(s.frame?.w, 1000), h: num(s.frame?.h, 100) };
         const seen = new Set();
         s.layers = (s.layers || []).filter(l => l && LAYER_TYPES.includes(l.type)).map(l => {
-            const n = createLayer(l.type, l);
+            // brak klucza `field` w zapisanej warstwie tekstowej = tekst statyczny (tak zapisuje go BTB CG Editor), nie pole TITLE
+            const n = createLayer(l.type, l.type === 'text' && !('field' in l) ? { ...l, field: '' } : l);
             if (seen.has(n.id)) n.id += '_' + seen.size;
             seen.add(n.id);
             n.motion = { ...DEFAULT_MOTION(), ...(l.motion || {}) };
@@ -205,6 +210,7 @@
 
         const clocks = [], tickers = [], motions = [], textNs = [];
         const seenField = new Set();
+        const titleLines = {};
 
         layers.forEach((l, idx) => {
             const n = idx + 1;
@@ -235,11 +241,14 @@
                 let content;
                 if (l.field) {
                     const id = fieldId(l.field) || 'TITLE';
-                    content = `{{{${id}}}}`;
+                    const line = id === 'TITLE' ? Math.floor(num(l.line, 0)) : 0;
+                    // `line` (≥1): warstwa pokazuje N-tą linię (blok <div>) wspólnego pola TITLE — edycja jak w Wizytówce: jeden edytor tekstu, wiele linii
+                    content = line >= 1 ? `{{{TITLE_L${line}}}}` : `{{{${id}}}}`;
+                    if (line >= 1) titleLines[line] = l.defaultText || '';
                     if (!seenField.has(id)) {
                         seenField.add(id);
                         const def = l.defaultText || '';
-                        out.ocgInputs.push({ id, label: l.name || id, default: def, type: 'text' });
+                        out.ocgInputs.push({ id, label: line >= 1 ? 'TITLE' : (l.name || id), default: def, type: 'text' });
                         if (RESERVED_TOP[id]) out.values[RESERVED_TOP[id]] = def;
                         else out.values.fields[id] = def;
                     }
@@ -275,7 +284,7 @@
             const gm = (l.group && scene.groups && scene.groups[l.group] && scene.groups[l.group].motion) || {};
             const mIn = mo.in || gm.in || null, mOut = mo.out || gm.out || null;
             if (mIn || mOut || mo.text || mo.textOut) {
-                motions.push({ n, in: mIn, out: mOut, text: mo.text || null, textOut: mo.textOut || null });
+                motions.push(roundDeep({ n, in: mIn, out: mOut, text: mo.text || null, textOut: mo.textOut || null }));
             }
             if (l.type === 'text' || l.type === 'clock') textNs.push(n);
         });
@@ -322,6 +331,58 @@
                 `        });\n` +
                 `    };\n` +
                 `    const stopTickers = () => { tickerTweens.forEach(t => t.kill()); tickerTweens = []; };\n`;
+        }
+
+        // ── Auto-szerokość (M2.0): warstwa tekstowa `autoW` rośnie/maleje do szerokości tekstu, warstwy `fitText` podążają ──
+        // delta = szerokość tekstu − l.w (z projektu), z klamrą [minW, maxW]; reguła identyczna w edytorze (compile.rs, btb-motion-player.js)
+        const fitAuto = [], fitLayers = [];
+        const nOf = {};
+        layers.forEach((l, idx) => { nOf[l.id] = idx + 1; });
+        layers.forEach((l, idx) => {
+            if (l.type === 'text' && l.autoW) {
+                fitAuto.push({ n: idx + 1, x: num(l.x, 0), w: num(l.w, 0), align: (l.font && l.font.align) || 'left',
+                    minW: l.minW !== undefined && l.minW !== null && l.minW !== '' ? num(l.minW, 0) : null,
+                    maxW: l.maxW !== undefined && l.maxW !== null && l.maxW !== '' ? num(l.maxW, 0) : null });
+            }
+        });
+        layers.forEach((l, idx) => {
+            const to = l.fitText && nOf[l.fitText.to];
+            if (!to || !fitAuto.some(a => a.n === to) || to === idx + 1) return;
+            fitLayers.push({ n: idx + 1, to, mode: l.fitText.mode === 'follow' ? 'follow' : 'size', x: num(l.x, 0), w: num(l.w, 0) });
+        });
+        if (fitAuto.length) {
+            js += `    const fitSpec = ${JSON.stringify({ frameW: FW, auto: fitAuto, layers: fitLayers })};\n` +
+                `    const fitRun = () => {\n` +
+                `        if (!root.isConnected) return;\n` +
+                `        const dl = {}; let grow = null;\n` +
+                `        fitSpec.auto.forEach(a => {\n` +
+                `            const cl = layer(a.n), t = cl && cl.querySelector('.cg-t');\n` +
+                `            if (!t) return;\n` +
+                `            const pw = t.style.getPropertyValue('width'), pp = t.style.getPropertyPriority('width');\n` +
+                `            const pf = t.style.getPropertyValue('flex'), pfp = t.style.getPropertyPriority('flex');\n` +
+                `            t.style.setProperty('width', 'max-content', 'important'); t.style.setProperty('flex', 'none', 'important');\n` +
+                `            const nat = t.offsetWidth;\n` +
+                `            if (pw) t.style.setProperty('width', pw, pp); else t.style.removeProperty('width');\n` +
+                `            if (pf) t.style.setProperty('flex', pf, pfp); else t.style.removeProperty('flex');\n` +
+                `            if (!(nat > 0)) return;\n` +
+                `            let W = nat;\n` +
+                `            if (a.minW !== null) W = Math.max(W, a.minW);\n` +
+                `            if (a.maxW !== null) W = Math.min(W, a.maxW);\n` +
+                `            const d = W - a.w, sh = a.align === 'right' ? -d : a.align === 'center' ? -d / 2 : 0;\n` +
+                `            dl[a.n] = { d, sh };\n` +
+                `            cl.style.width = W + 'px'; cl.style.left = (a.x + sh) + 'px';\n` +
+                `            grow = grow === null ? d + sh : Math.max(grow, d + sh);\n` +
+                `        });\n` +
+                `        fitSpec.layers.forEach(f => {\n` +
+                `            const cl = layer(f.n), k = dl[f.to];\n` +
+                `            if (!cl || !k) return;\n` +
+                `            if (f.mode === 'follow') cl.style.left = (f.x + k.d + k.sh) + 'px';\n` +
+                `            else { cl.style.width = (f.w + k.d) + 'px'; cl.style.left = (f.x + k.sh) + 'px'; }\n` +
+                `        });\n` +
+                `        if (grow !== null) scene.style.width = (fitSpec.frameW + grow) + 'px';\n` +
+                `    };\n` +
+                `    fitRun();\n` +
+                `    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitRun);\n`;
         }
 
         js += `    const textNs = ${JSON.stringify(textNs)};\n` +
@@ -381,6 +442,11 @@
         out.html_template = html;
         out.css_template = css;
         out.js_template = js;
+        const tlk = Object.keys(titleLines).map(Number).sort((a, b) => a - b);
+        if (tlk.length) {
+            out.values.title = tlk.map((k) => titleLines[k]).join('\n');
+            const t = out.ocgInputs.find((i) => i.id === 'TITLE'); if (t) t.default = out.values.title;
+        }
         return out;
     }
 

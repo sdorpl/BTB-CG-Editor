@@ -105,6 +105,70 @@
         });
     }
 
+    // Ściskanie mierzy szerokość tekstu — przed załadowaniem fontu (np. Bahnschrift z @font-face) wynik jest błędny,
+    // a po wczytaniu fontu tekst się poszerza i wychodzi poza warstwę. Dlatego liczymy ponownie, gdy fonty gotowe.
+    function scheduleSquashing(rootEl) {
+        requestAnimationFrame(() => applyGlobalSquashing(rootEl));
+        if (document.fonts && document.fonts.ready) {
+            const again = () => { if (rootEl.isConnected) applyGlobalSquashing(rootEl); };
+            document.fonts.ready.then(() => requestAnimationFrame(again));
+            if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => requestAnimationFrame(again), { once: true });
+        }
+    }
+
+    // ── Runtime WASM btb-motion (M2.3, opcja B) ────────────────────────────────────────────────────────
+    // Elementy z artefaktem `element.motion` (klucze, ścieżka ruchu — funkcje spoza CGMotion) grają silnikiem btb-motion
+    // z edytora; pozostałe jak dotąd przez CGMotion. `settings.motionEngine === 'cgmotion'` wyłącza WASM (domyślnie 'auto').
+    // Każda awaria (ładowanie WASM, tworzenie instancji) = powrót do CGMotion, nigdy czarny ekran.
+    const MOTION_BASE = '/vendor/btb-motion/';
+    function wantsWasmMotion(graphic, settings) {
+        const m = graphic && graphic.motion;
+        return !!(m && m.version === 1 && m.director && typeof m.director === 'object' && typeof WebAssembly !== 'undefined'
+            && !(settings && settings.motionEngine === 'cgmotion'));
+    }
+    function loadMotionRuntime() {
+        if (window.__btbRuntime) return window.__btbRuntime;
+        window.__btbRuntime = (async () => {
+            if (!window.BtbMotion) {
+                await new Promise((res, rej) => {
+                    const sc = document.createElement('script');
+                    sc.src = MOTION_BASE + 'btb-motion-player.js';
+                    sc.onload = res; sc.onerror = () => rej(new Error('nie wczytano btb-motion-player.js'));
+                    document.head.appendChild(sc);
+                });
+            }
+            const r = await fetch(MOTION_BASE + 'btb_motion_wasm.wasm');
+            if (!r.ok) throw new Error('btb_motion_wasm.wasm: HTTP ' + r.status);
+            return window.BtbMotion.compile(await r.arrayBuffer());
+        })();
+        window.__btbRuntime.catch(() => { window.__btbRuntime = null; });   // kolejna próba przy następnym elemencie
+        return window.__btbRuntime;
+    }
+    /** Uruchamia animację IN silnikiem WASM na zamontowanym elemencie. true = przejęte, false = użyj CGMotion. */
+    async function startWasmMotion(rootEl, data, opts) {
+        const instant = !!(opts && opts.instant);
+        try {
+            const mod = await Promise.race([loadMotionRuntime(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ładowania WASM')), 3000))]);
+            if (!rootEl.isConnected) return true;                                  // element już zdjęty
+            const m = data.motion;
+            const fx = rootEl.querySelector('.cg-scene') || rootEl;
+            const p = await window.BtbMotion.create(mod, { director: m.director, tickers: m.tickers || [], squash: m.squash, fit: null, manual: instant, embedded: { root: rootEl, fx } });
+            if (!rootEl.isConnected) { p.destroy(); return true; }
+            rootEl.__btb = p;
+            rootEl.__slt_hide = () => new Promise((res) => { if (!p.visible) return res(); p.on('end', () => res()); p.off(); });
+            p.take();
+            if (instant) {
+                // podgląd statyczny: przewiń do punktu Stop (hold) i zostaw nieruchomo (bez pętli rAF)
+                for (let i = 0; i < 400 && p.visible && !p.holding; i++) p.tick(0.05);
+                if (!p.holding) { p.destroy(); rootEl.__btb = null; return false; }
+            }
+            return true;
+        } catch (e) {
+            console.error('[btb-motion] powrót do CGMotion:', e);
+            return false;
+        }
+    }
+
     const container = document.getElementById('render-container');
     // Socket only needed in output.html (where container exists)
     const socket = (typeof io !== 'undefined' && container) ? io() : null;
@@ -119,6 +183,7 @@
             style: graphic.style, sideImage: graphic.sideImage,
             speed: graphic.speed, items: graphic.items, wiper: graphic.wiper,
             fields: graphic.fields, url: graphic.url, mediaType: graphic.mediaType,
+            motion: graphic.motion, motionEngine: settings && settings.motionEngine,
             videoLoop: graphic.videoLoop, videoMuted: graphic.videoMuted,
             backgroundVideo: graphic.backgroundVideo, backgroundEffect: graphic.backgroundEffect,
             activeGlobalFontFamily: (settings && settings.globalFontGraphics && settings.globalFontGraphics.includes(graphic.id)) ? settings.globalFontFamily : null
@@ -318,6 +383,9 @@
                 hideGraphic(id);
             }
         });
+
+        // runtime WASM ładujemy z wyprzedzeniem, żeby TAKE nie czekał na pobranie
+        if (newActiveGraphics.some(g => wantsWasmMotion(g, settings))) loadMotionRuntime().catch(() => { });
 
         // 2. Add or Update visible graphics
         newActiveGraphics.forEach(graphic => {
@@ -555,21 +623,33 @@
                         rootEl.setAttribute('data-squash-enabled', data.style?.typography?.squashEnabled !== false);
                         if (data.type === 'BADGE') rootEl.setAttribute('data-squash-mode', 'length');
                     }
-                    try {
-                        if (rootEl.__slt_show) {
-                            rootEl.__slt_show();
-                        } else if (window.CGMotion && rootEl.querySelector('[data-cg-anim]')) {
-                            // Deklaratywne animacje CGMotion — autoShow buduje timeline z atrybutów
-                            const animInCfg = (() => { try { return JSON.parse(rootEl.getAttribute('data-cg-config') || '{}'); } catch { return {}; } })();
-                            window.CGMotion.autoShow(rootEl, animInCfg);
-                        } else {
-                            rootEl.style.display = 'block';
+                    const legacyShow = () => {
+                        try {
+                            if (rootEl.__slt_show) {
+                                rootEl.__slt_show();
+                            } else if (window.CGMotion && rootEl.querySelector('[data-cg-anim]')) {
+                                // Deklaratywne animacje CGMotion — autoShow buduje timeline z atrybutów
+                                const animInCfg = (() => { try { return JSON.parse(rootEl.getAttribute('data-cg-config') || '{}'); } catch { return {}; } })();
+                                window.CGMotion.autoShow(rootEl, animInCfg);
+                            } else {
+                                rootEl.style.display = 'block';
+                            }
+                        } finally {
+                            rootEl.style.visibility = '';
                         }
-                    } finally {
-                        rootEl.style.visibility = '';
+                        // Apply global text squashing after initial render/animation trigger
+                        scheduleSquashing(rootEl);
+                    };
+                    if (wantsWasmMotion(data, settings)) {
+                        // element zostaje ukryty (visibility) do startu pierwszej klatki silnika WASM
+                        startWasmMotion(rootEl, data).then((ok) => {
+                            if (!ok) { legacyShow(); return; }
+                            rootEl.style.visibility = '';
+                            scheduleSquashing(rootEl);
+                        });
+                    } else {
+                        legacyShow();
                     }
-                    // Apply global text squashing after initial render/animation trigger
-                    requestAnimationFrame(() => applyGlobalSquashing(rootEl));
                 }, 30);
             } catch (e) {
                 console.error("[CGMotion] Template JS error", e);
@@ -628,7 +708,7 @@
                         console.error("Anim promise error", e);
                         settle();
                     });
-                    setTimeout(settle, durationMs * 2 + 1000);
+                    setTimeout(settle, rootEl.__btb ? 30000 : durationMs * 2 + 1000);
                 } else {
                     // If it's a standard CSS transition (most templates in db.json), 
                     // __slt_hide just applies CSS. We MUST wait the duration then remove.
@@ -726,6 +806,7 @@
             wrapperEl.querySelectorAll('video').forEach(v => {
                 try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { }
             });
+            if (root && root.__btb) { try { root.__btb.destroy(); } catch (e) { } root.__btb = null; }
             if (root) { root.__slt_show = null; root.__slt_hide = null; }
         } catch (e) { console.error('disposeInstance error', e); }
     }
@@ -965,65 +1046,86 @@
                     }
                 }
 
-                // Trigger __slt_show and force instant visibility
-                if (rootEl && typeof rootEl.__slt_show === 'function') {
-                    try {
-                        rootEl.__slt_show();
-                    } catch (e) { console.error("__slt_show error:", e); }
-                }
+                const legacyPreviewShow = () => {
+                    let pendingSettle = null;
+                    // Trigger __slt_show and force instant visibility
+                    if (rootEl && typeof rootEl.__slt_show === 'function') {
+                        try {
+                            rootEl.__slt_show();
+                        } catch (e) { console.error("__slt_show error:", e); }
+                    }
 
-                if (rootEl) {
-                    rootEl.classList.add('active');
-                    if (rootEl.firstElementChild) rootEl.firstElementChild.classList.add('active');
-                }
+                    if (rootEl) {
+                        rootEl.classList.add('active');
+                        if (rootEl.firstElementChild) rootEl.firstElementChild.classList.add('active');
+                    }
 
-                if (options.instant && rootEl) {
-                    // Use rAF to ensure DOM is committed before forcing styles
-                    instantSettlePromises.push(new Promise((resolveSettle) => {
-                        requestAnimationFrame(() => {
-                            // Force GSAP tweens to complete. A plain progress(1) only forces the
-                            // DISPLAY for the current tick — a tween that is still active (not
-                            // paused/killed) keeps being driven by GSAP's real-time clock, so on
-                            // the very next tick (GSAP's own internal rAF ticker, independent of
-                            // ours) it recomputes from actual elapsed time and overwrites our
-                            // forced end-state back to an early, mid-animation value. pause() after
-                            // progress(1) locks it at the end state for good. Infinite tweens
-                            // (repeat:-1, e.g. a scrolling ticker track) are left untouched so they
-                            // keep animating in the preview as intended.
-                            if (window.gsap) {
-                                try {
-                                    const finite = (t) => t.repeat() !== -1;
-                                    window.gsap.getTweensOf(rootEl).filter(finite).forEach(t => t.progress(1).pause());
-                                    window.gsap.getTweensOf(rootEl.querySelectorAll('*')).filter(finite).forEach(t => t.progress(1).pause());
-                                } catch (e) { }
-                            }
-                            // Force all child elements visible - unconditionally override opacity and transform
-                            // This handles CSS-transition based templates where __slt_show sets properties
-                            // but they haven't taken effect yet
-                            const forceVisible = (el) => {
-                                el.style.setProperty('opacity', '1', 'important');
-                                el.style.setProperty('visibility', 'visible', 'important');
-                                // Ręczne ściskanie tekstu (.cg-text-squash z Edytora Tekstu) to treść, nie
-                                // animacja — zachowaj jego scaleX zamiast zerować do 'none'.
-                                if (!el.classList.contains('cg-text-squash')) {
-                                    el.style.setProperty('transform', 'none', 'important');
+                    if (options.instant && rootEl) {
+                        // Use rAF to ensure DOM is committed before forcing styles
+                        pendingSettle = new Promise((resolveSettle) => {
+                            requestAnimationFrame(() => {
+                                // Force GSAP tweens to complete. A plain progress(1) only forces the
+                                // DISPLAY for the current tick — a tween that is still active (not
+                                // paused/killed) keeps being driven by GSAP's real-time clock, so on
+                                // the very next tick (GSAP's own internal rAF ticker, independent of
+                                // ours) it recomputes from actual elapsed time and overwrites our
+                                // forced end-state back to an early, mid-animation value. pause() after
+                                // progress(1) locks it at the end state for good. Infinite tweens
+                                // (repeat:-1, e.g. a scrolling ticker track) are left untouched so they
+                                // keep animating in the preview as intended.
+                                if (window.gsap) {
+                                    try {
+                                        const finite = (t) => t.repeat() !== -1;
+                                        window.gsap.getTweensOf(rootEl).filter(finite).forEach(t => t.progress(1).pause());
+                                        window.gsap.getTweensOf(rootEl.querySelectorAll('*')).filter(finite).forEach(t => t.progress(1).pause());
+                                    } catch (e) { }
                                 }
-                                el.style.setProperty('transition', 'none', 'important');
-                                el.style.setProperty('clip-path', 'none', 'important');
-                                el.style.setProperty('animation', 'none', 'important');
-                            };
-                            rootEl.querySelectorAll('*').forEach(forceVisible);
-                            resolveSettle();
+                                // Force all child elements visible - unconditionally override opacity and transform
+                                // This handles CSS-transition based templates where __slt_show sets properties
+                                // but they haven't taken effect yet
+                                const forceVisible = (el) => {
+                                    el.style.setProperty('opacity', '1', 'important');
+                                    el.style.setProperty('visibility', 'visible', 'important');
+                                    // Ręczne ściskanie tekstu (.cg-text-squash z Edytora Tekstu) to treść, nie
+                                    // animacja — zachowaj jego scaleX zamiast zerować do 'none'.
+                                    if (!el.classList.contains('cg-text-squash')) {
+                                        el.style.setProperty('transform', 'none', 'important');
+                                    }
+                                    el.style.setProperty('transition', 'none', 'important');
+                                    el.style.setProperty('clip-path', 'none', 'important');
+                                    el.style.setProperty('animation', 'none', 'important');
+                                };
+                                rootEl.querySelectorAll('*').forEach(forceVisible);
+                                resolveSettle();
+                            });
                         });
+                    } else if (!rootEl) {
+                        // fallback
+                    } else if (!rootEl.__slt_show) {
+                        rootEl.style.display = 'block';
+                    }
+                    return pendingSettle;
+                };
+                // Podglądy edycyjne (`instant`: układ spoczynkowy — WYSIWYG, Studio, pomiar bbox) zostają bez WASM; WASM gra w podglądach animowanych
+                // (monitory) oraz gdy wywołujący poprosi o klatkę w punkcie Stop: options.instant + options.motion = 'hold'.
+                if (rootEl && wantsWasmMotion(graphic, settings) && (!options.instant || options.motion === 'hold')) {
+                    // element z artefaktem motion: podgląd silnikiem WASM (hold = klatka w punkcie Stop, bez wymuszania widoczności);
+                    // awaria → ten sam podgląd co dla CGMotion
+                    instantSettlePromises.push(startWasmMotion(rootEl, graphic, { instant: !!options.instant }).then((ok) => {
+                        if (ok) {
+                            rootEl.classList.add('active');
+                            if (rootEl.firstElementChild) rootEl.firstElementChild.classList.add('active');
+                            return null;
+                        }
+                        return legacyPreviewShow();
                     }));
-                } else if (!rootEl) {
-                    // fallback
-                } else if (!rootEl.__slt_show) {
-                    rootEl.style.display = 'block';
+                } else {
+                    const pr = legacyPreviewShow();
+                    if (pr) instantSettlePromises.push(pr);
                 }
 
                 // Apply global text squashing to preview instances
-                requestAnimationFrame(() => applyGlobalSquashing(rootEl));
+                scheduleSquashing(rootEl);
             });
 
             // Recalculate attachments for preview after DOM settles
@@ -1312,6 +1414,22 @@
         if (isStandardLogo && graphic.url) {
             ctx.LOGO_URL = graphic.url;
         }
+
+        // TITLE_L1, TITLE_L2… — kolejne linie (bloki <div>/<p>, <br> lub \n) tytułu; używają ich warstwy tekstowe sceny z `line`
+        const applyTitleLines = (ctx) => {
+            const titleLineVars = {};
+            const t = String(ctx.TITLE || '');
+            let parts = [];
+            if (/<(div|p)\b/i.test(t)) {
+                const tmp = document.createElement('div'); tmp.innerHTML = t;
+                parts = [...tmp.childNodes].filter((n) => n.nodeType === 1 || (n.textContent || '').trim()).map((n) => n.nodeType === 1 ? n.outerHTML : n.textContent);
+                parts = parts.map((h) => h.replace(/^<(div|p)\b[^>]*>([\s\S]*)<\/\1>$/i, '$2'));
+            } else parts = t.split(/<br\s*\/?>|\r?\n/i);
+            parts.forEach((h, i) => { titleLineVars['TITLE_L' + (i + 1)] = h; });
+            titleLineVars.TITLE_L1 = titleLineVars.TITLE_L1 || '';
+            Object.assign(ctx, titleLineVars);
+        };
+        applyTitleLines(ctx);
 
         // Ściskanie tekstu (.slt-squash) dla elementów bez własnej sceny — szablony pisane ręcznie
         // (LOWER_THIRD/GRAPHIC/TICKER/BADGE) nie niosą tej klasy w swoim html_template, więc checkbox
