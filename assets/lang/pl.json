@@ -317,6 +317,7 @@
   "element.anchor": "Kotwica",
   "element.margin_x": "Margines X",
   "element.scale": "Skala",
+  "element.opacity": "Przezroczystość",
   "element.rotation": "Obrót °",
   "element.whole": "Cały element: {name}",
   "element.layer_z": "Warstwa Z",

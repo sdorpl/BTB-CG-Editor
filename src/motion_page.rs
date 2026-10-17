@@ -54,13 +54,14 @@ pub fn build_html(el: &Element, manual: bool) -> Result<String, String> {
     let mut cfg = config(el, manual)?;
     cfg["wasm"] = Value::String(base64::engine::general_purpose::STANDARD.encode(WASM));
     let f = &cfg["frame"];
+    let op = el.layout.opacity;
     let (fw, fh, x, y, sc, rot) = (f["w"].as_f64().unwrap(), f["h"].as_f64().unwrap(), f["x"].as_f64().unwrap(), f["y"].as_f64().unwrap(), f["scale"].as_f64().unwrap(), f["rotation"].as_f64().unwrap());
     let css = cfg["css"].as_str().unwrap_or("").to_string();
     let json = serde_json::to_string(&cfg).map_err(|e| e.to_string())?;
     Ok(TEMPLATE
         .replace("@@TITLE@@", &el.name.replace('<', "&lt;"))
         .replace("@@FONT@@", &base64::engine::general_purpose::STANDARD.encode(FONT))
-        .replace("@@ROOT@@", &format!("left:{x}px;top:{y}px;width:{fw}px;height:{fh}px;transform:scale({sc}) rotate({rot}deg);"))
+        .replace("@@ROOT@@", &format!("left:{x}px;top:{y}px;width:{fw}px;height:{fh}px;transform:scale({sc}) rotate({rot}deg);opacity:{op};"))
         .replace("@@SCENE_CSS@@", &css.replace("</style", "<\\/style"))
         .replace("@@CONFIG@@", &script_safe(&json))
         .replace("@@PLAYER@@", &script_safe(PLAYER)))
@@ -228,6 +229,13 @@ mod tests {
             }
             std::fs::write(dir.join(format!("{name}.element.json")), serde_json::to_string(&[&el]).unwrap()).unwrap();
         }
+    }
+
+    #[test]
+    fn layout_opacity_is_applied_to_the_page_root() {
+        let mut el = Element::new_typed("t", "LOWER_THIRD");
+        el.layout.opacity = 0.5;
+        assert!(build_html(&el, true).unwrap().contains("opacity:0.5;"));
     }
 
     #[test]

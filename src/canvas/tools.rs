@@ -247,6 +247,8 @@ fn resize_layer(l: &mut Layer, handle: (i8, i8), orig: (f32, f32, f32, f32), rot
 }
 
 fn click(st: &mut CanvasState, geo: &Geo, scene: &Scene, selected: &mut Vec<String>, p: Pos2, mods: Mods) {
+    // Alt+klik wybiera cały element, także gdy warstwy zakrywają ramkę
+    if mods.alt && geo.inside_frame(p) { *selected = vec![ELEMENT.to_string()]; return; }
     let path_hit = geo.pick_path(p);
     if let (Some(PathHit::Key(i)), Some(l)) = (path_hit, geo.single.as_ref()) {
         st.path_sel = Some(i);

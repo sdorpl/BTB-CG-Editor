@@ -24,6 +24,7 @@ fn de_opt_f32<'de, D: Deserializer<'de>>(d: D) -> Result<Option<f32>, D::Error> 
 }
 
 fn is_zero(v: &f32) -> bool { *v == 0.0 }
+fn is_one(v: &f32) -> bool { *v == 1.0 }
 fn t() -> bool { true }
 
 // ── Fill / Stroke / Radius / Shadow ─────────────────────────────────────────
@@ -484,6 +485,9 @@ pub struct Layout {
     pub scale: f32,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub rotation: f32,
+    /// przezroczystość całego elementu na wizji (mnoży się z animacją i warstwami)
+    #[serde(default = "d1", skip_serializing_if = "is_one")]
+    pub opacity: f32,
     #[serde(default)]
     pub margin_x: f32,
     #[serde(default)]
@@ -497,7 +501,7 @@ impl Default for Layout {
     fn default() -> Self {
         Self {
             side: "custom".into(), x: Some(100.0), y: Some(800.0), width: None, height: None, layer: Some(1.0),
-            scale: 1.0, rotation: 0.0, margin_x: 0.0, margin_y: 0.0, extra: Extra::new(),
+            scale: 1.0, rotation: 0.0, opacity: 1.0, margin_x: 0.0, margin_y: 0.0, extra: Extra::new(),
         }
     }
 }
@@ -677,5 +681,20 @@ mod tests {
         let mut lo = Layout { side: "center".into(), ..Layout::default() };
         lo.move_by(10.0, 0.0, 400.0, 100.0);
         assert_eq!(lo.side, "custom");
+    }
+}
+
+#[cfg(test)]
+mod opacity_tests {
+    use super::*;
+
+    #[test]
+    fn layout_opacity_defaults_to_one_and_is_only_written_when_changed() {
+        let lo: Layout = serde_json::from_str(r#"{"side":"custom","x":1,"y":2}"#).unwrap();
+        assert_eq!(lo.opacity, 1.0);
+        assert!(!serde_json::to_string(&lo).unwrap().contains("opacity"));
+        let faded = Layout { opacity: 0.4, ..lo };
+        let back: Layout = serde_json::from_str(&serde_json::to_string(&faded).unwrap()).unwrap();
+        assert_eq!(back.opacity, 0.4);
     }
 }

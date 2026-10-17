@@ -317,6 +317,7 @@
   "element.anchor": "Anchor",
   "element.margin_x": "Margin X",
   "element.scale": "Scale",
+  "element.opacity": "Opacity",
   "element.rotation": "Rotation °",
   "element.whole": "Whole element: {name}",
   "element.layer_z": "Z layer",

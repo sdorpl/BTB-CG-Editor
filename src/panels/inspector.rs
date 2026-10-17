@@ -401,6 +401,7 @@ fn layout_section(ui: &mut Ui, lo: &mut Layout) {
     } else {
         ui.horizontal(|ui| { ui.label(tr("element.margin_x")); num(ui, &mut lo.margin_x, 1.0); ui.label("Y"); num(ui, &mut lo.margin_y, 1.0); });
     }
+    ui.horizontal(|ui| { ui.label(tr("element.opacity")); ui.add(egui::Slider::new(&mut lo.opacity, 0.0..=1.0).fixed_decimals(2)); });
     ui.horizontal(|ui| { ui.label(tr("element.rotation")); num_range(ui, &mut lo.rotation, 0.5, -360.0, 360.0); });
     ui.horizontal(|ui| { ui.label(tr("element.scale")); num_range(ui, &mut lo.scale, 0.01, 0.05, 10.0); ui.label(tr("element.layer_z")); let mut z = lo.layer.unwrap_or(1.0); num_range(ui, &mut z, 0.1, 0.0, 100.0); lo.layer = Some(z); });
 }

@@ -136,7 +136,7 @@ pub fn draw_canvas(
     let sp = SceneParams {
         scene,
         frame_aff,
-        elem_tr: inputs.sp.elem_tr,
+        elem_tr: { let mut t = inputs.sp.elem_tr; t.opacity *= layout.opacity; t },
         fx: inputs.sp.fx,
         values: render::Values { title: inputs.sp.values.title, fields: inputs.sp.values.fields, extra: inputs.sp.values.extra, base_url: inputs.sp.values.base_url },
         time: inputs.sp.time,
@@ -498,6 +498,16 @@ mod tests {
         // lewa krawędź ramki 3 px od krawędzi pola
         c.drag(from, from + Vec2::new(-97.0 * c.st.zoom, 0.0));
         assert_eq!(c.el.layout.x, Some(0.0));
+    }
+
+    #[test]
+    fn alt_click_selects_the_element_even_over_a_layer() {
+        let mut c = C::plain();
+        let l0 = c.layer();
+        c.alt = true;
+        c.press_release(c.screen(l0.x + l0.w / 2.0, l0.y + l0.h / 2.0));
+        c.alt = false;
+        assert_eq!(c.selected, vec![ELEMENT.to_string()]);
     }
 
     #[test]

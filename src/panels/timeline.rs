@@ -199,12 +199,14 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
 
         // wiersz elementu
         let y0 = rect.min.y + 18.0;
-        p.rect_filled(Rect::from_min_size(Pos2::new(rect.min.x, y0), Vec2::new(LABEL_W, ROW_H)), 0.0, Color32::from_gray(40));
+        let element_sel = selected.len() == 1 && selected[0] == ELEMENT;
+        p.rect_filled(Rect::from_min_size(Pos2::new(rect.min.x, y0), Vec2::new(LABEL_W, ROW_H)), 0.0, if element_sel { Color32::from_rgb(40, 60, 100) } else { Color32::from_gray(40) });
         p.text(Pos2::new(rect.min.x + 6.0, y0 + ROW_H / 2.0), egui::Align2::LEFT_CENTER, tr("timeline.element_row"), egui::FontId::proportional(11.0), Color32::from_rgb(250, 204, 21));
         let a = el.animation.clone();
         {
             let er = Rect::from_min_size(Pos2::new(rect.min.x, y0), Vec2::new(LABEL_W, ROW_H));
             let eresp = ui.interact(er, ui.id().with("tl-element"), Sense::click());
+            if eresp.clicked() { acts.push(Act::SelectLayer(ELEMENT.to_string())); }
             eresp.context_menu(|ui| {
                 ui.label(tr("timeline.element_keys"));
                 let at = head_time(pb, plan).unwrap_or(0.0);
