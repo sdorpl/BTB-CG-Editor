@@ -13,6 +13,7 @@ grafiki z dysku, paczka elementu `.cgpack`.
 
 ## Zrobione ostatnio
 
+- G1/1: usunięto `unwrap()` na ścieżkach z danych zewnętrznych (render, app, timeline, keyconv, canvas/tools, motion_page, motion_bridge, compile, btb-motion/channel); zostały CLI w `main.rs`, `presets.rs`, `i18n.rs` (patrz LUKI.md).
 - Dokumentacja aplikacji i instrukcja dla początkujących.
 - Obrazy z pliku na dysku (wybór pliku, nowa warstwa, osadzanie) — punkt A z [PROPOZYCJE-FUNKCJI.md](PROPOZYCJE-FUNKCJI.md).
 - Projekt formatu paczki elementu `.cgpack` ([FORMAT-PACZKI.md](FORMAT-PACZKI.md)) — sam projekt, bez implementacji.

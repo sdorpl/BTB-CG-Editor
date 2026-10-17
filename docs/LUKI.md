@@ -12,7 +12,7 @@ i wierność idą przed nowymi funkcjami.
 
 | # | Luka | Dowód / uwagi |
 |---|---|---|
-| 1 | Użycia `unwrap()`/`expect()` w kodzie nietestowym | ~200 trafień w `src/` i `btb-motion*` (część w testach); policz bez testów i usuwaj na ścieżkach z danych zewnętrznych (plik, serwer, import) |
+| 1 | Użycia `unwrap()`/`expect()` w kodzie nietestowym | po przeglądzie 2026-10-17 zostało ok. 22 trafień poza testami: `src/main.rs` (15, narzędzia CLI), `src/presets.rs` (7, warstwy budowane lokalnie ze stałych), `src/i18n.rs` (1, `panic!` przy uszkodzonych wkompilowanych tłumaczeniach). Usunięte: mutexy, `scene`, klucze, `frame` w stronie wyjściowej |
 | 2 | Brak ostatniej linii obrony (`catch_unwind` przy otwieraniu, imporcie, eksporcie i zapisie) | zaprojektować: panika → komunikat i zachowanie dokumentu |
 | 3 | Brak lintów `clippy::unwrap_used` itd. | dodać `#![deny(...)]` do czystych modułów, nowe moduły startują z nim; `make lint` obejmuje tylko `btb-motion*` |
 | 4 | Granica WASM (`btb-motion-wasm`) | `unsafe extern "C"` przyjmuje wskaźniki i długości z hosta; dodać walidację i testy złośliwych danych |
