@@ -240,7 +240,8 @@ pub enum LayerType { Shape, Text, Image, Video, Clock, Ticker }
 
 impl LayerType {
     pub const ALL: [LayerType; 6] = [Self::Shape, Self::Text, Self::Image, Self::Video, Self::Clock, Self::Ticker];
-    /// Nazwa jak w JSON (`serde`), używana też jako część klucza tłumaczenia.
+    /// Nazwa jak w JSON (`serde`), używana w testach tłumaczeń.
+    #[cfg(test)]
     pub fn key(&self) -> &'static str {
         match self {
             Self::Shape => "shape", Self::Text => "text", Self::Image => "image",
@@ -627,6 +628,4 @@ impl Element {
         crate::compile::apply_to_element(&mut el, scene);
         el
     }
-
-    pub fn has_scene(&self) -> bool { self.scene.is_some() }
 }

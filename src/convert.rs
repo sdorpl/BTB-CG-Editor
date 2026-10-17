@@ -20,7 +20,6 @@ pub struct Converted {
     /// Co odtworzono z kodu szablonu poza geometrią (domyślne efekty tekstu, animacje z `onShow`).
     pub notes: Vec<String>,
     pub error: Option<String>,
-    pub summary: String,
 }
 
 pub type ConvertResult = Result<Vec<Converted>, String>;
@@ -112,18 +111,16 @@ fn parse_bridge_output(stdout: &[u8]) -> ConvertResult {
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default();
         if r.get("ok").and_then(|x| x.as_bool()) != Some(true) {
             let error = r.get("error").and_then(|x| x.as_str()).unwrap_or(crate::i18n::tr("convert.unknown_error")).to_string();
-            return Converted { element: None, warnings, notes, error: Some(error), summary: String::new() };
+            return Converted { element: None, warnings, notes, error: Some(error) };
         }
         match serde_json::from_value::<Element>(r["element"].clone()) {
             Ok(mut el) if el.scene.is_some() => {
                 // odtworzone z kodu animacje zmieniły scenę po kompilacji w JS: kod musi odpowiadać scenie
                 if !notes.is_empty() { crate::compile::recompile(&mut el); }
-                let st = &r["stats"];
-                let summary = crate::i18n::trf("convert.summary", &[("layers", &st["layers"]), ("w", &st["frame"]["w"]), ("h", &st["frame"]["h"])]);
-                Converted { element: Some(el), warnings, notes, error: None, summary }
+                Converted { element: Some(el), warnings, notes, error: None }
             }
-            Ok(_) => Converted { element: None, warnings, notes, error: Some(crate::i18n::tr("convert.no_scene").into()), summary: String::new() },
-            Err(e) => Converted { element: None, warnings, notes, error: Some(crate::i18n::trf("convert.bad_result", &[("err", &e)])), summary: String::new() },
+            Ok(_) => Converted { element: None, warnings, notes, error: Some(crate::i18n::tr("convert.no_scene").into()) },
+            Err(e) => Converted { element: None, warnings, notes, error: Some(crate::i18n::trf("convert.bad_result", &[("err", &e)])) },
         }
     }).collect())
 }

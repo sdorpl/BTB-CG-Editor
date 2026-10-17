@@ -53,7 +53,6 @@ pub struct Plan {
     pub out_total: f32,
     pub base_end: f32,
     pub pre_dur: f32,
-    pub par_dur: f32,
     pub base_out_start: f32,
 }
 
@@ -142,7 +141,7 @@ pub fn plan(el: &Element, scene: &Scene, values: &Values) -> Plan {
     let elem_out_total = if a.out.anim_type == "none" { 0.0 } else { anim::total(&elem_out) };
     let base_out_start = if tos { (pre_dur + par_dur - 0.1).max(pre_dur) } else { pre_dur };
     let out_total = (base_out_start + elem_out_total).max(pre_dur + par_dur).max(key_end - in_total.max(0.05)).max(0.05);
-    Plan { in_total: in_total.max(0.05), out_total, base_end, pre_dur, par_dur, base_out_start }
+    Plan { in_total: in_total.max(0.05), out_total, base_end, pre_dur, base_out_start }
 }
 
 fn combine(a: &mut Transform, b: &Transform) {

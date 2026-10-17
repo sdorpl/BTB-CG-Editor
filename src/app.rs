@@ -509,7 +509,7 @@ impl CgEditorApp {
             let _ = (&empty, &extra);
             match &self.element.scene {
                 Some(s) => (playback::plan(&self.element, &crate::links::resolve(s, &values), &values), ()),
-                None => (playback::Plan { in_total: 0.5, out_total: 0.5, base_end: 0.0, pre_dur: 0.0, par_dur: 0.0, base_out_start: 0.0 }, ()),
+                None => (playback::Plan { in_total: 0.5, out_total: 0.5, base_end: 0.0, pre_dur: 0.0, base_out_start: 0.0 }, ()),
             }
         };
         self.playback.advance(dt, &plan);

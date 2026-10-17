@@ -539,7 +539,6 @@ dependencies = [
  "egui",
  "egui_extras",
  "image",
- "rand 0.8.8",
  "rfd",
  "serde",
  "serde_json",

@@ -23,7 +23,6 @@ enum Drag {
     Marquee { start: Pos2 },
     PathKey { layer: String, idx: usize },
     PathHandle { layer: String, idx: usize, out: bool },
-    Pan,
 }
 
 #[derive(Clone, Copy)]
@@ -377,7 +376,6 @@ pub fn draw_canvas(
                             if let Some(pa) = l.path.as_mut() { pa.set_tangent(*idx, *out, f.x - c.0, f.y - c.1, !alt); }
                         }
                     }
-                    Drag::Pan => {}
                 }
                 st.drag = Some(drag);
             }
@@ -455,7 +453,6 @@ pub fn draw_canvas(
         fx: inputs.sp.fx,
         values: render::Values { title: inputs.sp.values.title, fields: inputs.sp.values.fields, extra: inputs.sp.values.extra, base_url: inputs.sp.values.base_url },
         time: inputs.sp.time,
-        glow: 0.0,
         badge_squash: inputs.sp.badge_squash,
     };
     render::draw_scene(&painter.with_clip_rect(rect), &ctx, &view, &sp);

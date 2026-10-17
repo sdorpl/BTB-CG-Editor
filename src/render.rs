@@ -208,7 +208,6 @@ pub struct SceneParams<'a> {
     pub fx: &'a HashMap<String, LayerFx>,
     pub values: Values<'a>,
     pub time: f64,
-    pub glow: f32,
     /// BADGE: tekst ściskany wg długości (jak `data-squash-mode=length` w BTB-CG), nie do szerokości pudełka.
     pub badge_squash: bool,
 }

@@ -88,7 +88,6 @@
   "convert.bad_output": "Nieprawidłowa odpowiedź konwertera: {err}",
   "convert.bad_format": "Konwerter zwrócił nieoczekiwany format.",
   "convert.unknown_error": "Nieznany błąd konwersji.",
-  "convert.summary": "{layers} warstw, ramka {w}×{h}",
   "convert.no_scene": "Konwerter nie zwrócił sceny.",
   "convert.bad_result": "Błąd odczytu wyniku: {err}",
   "push.sending": "Wysyłanie do BTB-CG…",

@@ -52,9 +52,6 @@ pub fn element_origin(t: &mut Transform) {
 }
 
 impl Transform {
-    /// Combine a parent (element-level) transform with this one (parent applied after child).
-    pub fn lerp_scalar(a: f32, b: f32, t: f32) -> f32 { a + (b - a) * t }
-
     /// Wersja dla podglądu egui: efekty, których nie da się narysować wprost (maska żaluzji, ukośna
     /// maska, rozdzielenie RGB), przybliżone przezroczystością i prostokątnym przycięciem.
     pub fn approx(&self) -> Transform {
@@ -416,14 +413,6 @@ pub fn text_out_fx(effect: &str, duration: f32, ease_name: &str, stagger_cfg: f3
     fx
 }
 
-/// Duration (incl. unit stagger) of a text effect, used to size playback.
-pub fn text_total(effect: &str, duration: f32, delay: f32, stagger_cfg: f32, units: usize) -> f32 {
-    let split = split_of(effect);
-    let per = if stagger_cfg > 0.0 { stagger_cfg } else if split == Split::Chars { 0.04 } else { 0.09 };
-    let st = if split == Split::Whole { 0.0 } else { per.min(1.2 / units.max(1) as f32) * units.saturating_sub(1) as f32 };
-    delay + duration + st
-}
-
 /// Compat key written to exports so runtimes that lack a new type degrade to a known one (cgmotion reads `fallback`).
 pub fn fallback_for(ty: &str) -> Option<&'static str> {
     Some(match ty {
@@ -502,10 +491,6 @@ pub fn loop_transform(kind: &str, t: f32, dur_override: Option<f32>) -> Transfor
         _ => {}
     }
     o
-}
-
-pub fn glow_amount(kind: &str, t: f32) -> f32 {
-    if kind == "glow" { yoyo(t, 1.5) } else { 0.0 }
 }
 
 pub const ANIM_TYPES: &[&str] = &["none", "slide", "fade", "zoom", "zoom-in", "pop", "wipe", "wipe-y", "clip", "blur", "flip", "flip-x", "rotate", "skew", "drop", "glitch", "slide-overshoot", "split-reveal", "mask-diag", "shutter", "bar-grow", "rgb-split"];
