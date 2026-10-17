@@ -426,6 +426,23 @@ pub fn apply_to_element(el: &mut Element, mut scene: Scene) {
 }
 
 /// Re-runs the compiler on the element's current scene (after any scene edit).
+/// Poprawka pionowego wyśrodkowania tekstu dla podglądu HTML (poza kontraktem z `scene-model.js`, więc nie trafia do
+/// `css_template`). `.cg-t` jest blokiem o wysokości warstwy (a `.slt-squash` ma `display: inline-block !important`),
+/// więc wiersz wyższy od pudełka (line-height × rozmiar) uciekał w dół. Tekst jest jednowierszowy (nowrap): wiersz
+/// o wysokości pudełka daje dokładne wyśrodkowanie, a `render.rs` liczy tak samo. Bahnschrift (metryki typo: ascent
+/// 0,794 em, descent 0,206 em) ląduje wtedy kapitalikami ok. 0,073 em nad środkiem; `top` w em to koryguje
+/// (`relative` nie koliduje z `transform` ściskania). Selektory bez `#id` i bez klasy `.cg-t` (patrz skoper w renderer.js).
+pub fn text_centering_css(scene: &Scene) -> String {
+    let mut css = String::new();
+    for (idx, l) in scene.layers.iter().filter(|l| l.visible).enumerate() {
+        let f = l.font_or_default();
+        if l.layer_type != LayerType::Text || matches!(f.valign.as_str(), "top" | "bottom") { continue; }
+        let fix = if f.family.eq_ignore_ascii_case("bahnschrift") { " position: relative; top: 0.073em;" } else { "" };
+        css += &format!(".cg-i{} > [data-cg-text] {{ line-height: {}px;{fix} }}\n", idx + 1, fmt(l.h));
+    }
+    css
+}
+
 pub fn recompile(el: &mut Element) {
     if let Some(scene) = el.scene.take() {
         apply_to_element(el, scene);

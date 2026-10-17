@@ -47,6 +47,7 @@ pub fn build_html(el: &Element, base_url: &str) -> Result<String, String> {
     Ok(TEMPLATE
         .replace("@@TITLE@@", &el.name.replace('<', "&lt;"))
         .replace("@@FONT@@", &font_b64)
+        .replace("@@FIXES@@", &el.scene.as_ref().map(crate::compile::text_centering_css).unwrap_or_default())
         .replace("@@ELEMENT@@", &script_safe(&json))
         .replace("@@CGMOTION@@", &script_safe(&cgmotion))
         .replace("@@RENDERER@@", &script_safe(&renderer)))
@@ -80,6 +81,7 @@ html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 13px 
 .cg-i > .cg-t { width: 100%; height: 100%; overflow: hidden; }
 .cg-t p, .cg-t h1, .cg-t h2, .cg-t h3, .cg-t h4, .cg-t ul, .cg-t ol, .cg-t li, .cg-t blockquote { margin: 0; padding: 0; }
 .cg-t p + p { margin-top: 0.4em; }
+@@FIXES@@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
