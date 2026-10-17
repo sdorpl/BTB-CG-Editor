@@ -1,7 +1,7 @@
 # Raport: prawy panel edycyjny (inspektor) – układ funkcji
 
 Zakres: [src/panels/inspector.rs](../src/panels/inspector.rs) (576 linii), wywołanie w `app.rs` (`SidePanel::right("inspector")`), porównanie z panelem warstw (`layers.rs`) i osią czasu (`timeline.rs`).
-Stan: przegląd kodu, bez zmian w programie.
+Stan: przegląd kodu; **zmiany z sekcji 5 wdrożone** (patrz „Status wdrożenia” na końcu).
 
 ## 1. Jak panel jest zbudowany dziś
 
@@ -93,3 +93,24 @@ Zakładki:  Właściwości | Ruch | Element | Kod
 6. Podział pliku (3.4) – razem z krokiem 1–4, nie osobno.
 
 Każdy krok dodaje/zmienia klucze i18n w `pl.json` **i** `en.json` (testy `i18n::tests` to pilnują) i wymaga ponownych zrzutów `make ui-shots --update`.
+
+## 6. Status wdrożenia
+
+Wszystkie kroki z sekcji 5 zrobione. `inspector.rs` rozbity na `src/panels/inspector/{mod,layer,align,motion,element,code}.rs`.
+
+| Punkt | Co zrobiono |
+|---|---|
+| 2.1 | Layout i ramka tylko w zakładce Element; wybór „▣ Element” w panelu warstw przełącza na nią (raz, przy zmianie zaznaczenia), zakładka Właściwości pokazuje tylko podpowiedź i przycisk |
+| 2.2, 2.3 | Zakładka „Ruch” z przełącznikiem Element / Warstwa; jedna `spec_grid` dla `AnimSpec` i `MotionSpec`; lista wszystkich warstw to zwinięty przegląd (wybór warstwy + kopiowanie ruchu) |
+| 2.4 | Sekcja „Klucze i ścieżka”: liczba kanałów/kluczy, „Presety na klucze” (zakres element/warstwa), „Usuń klucze”. Pozycja Stop nadal tylko na osi czasu |
+| 2.5 | Nagłówek inspektora: nazwa, 👁, 🔒; dwuklik w panelu warstw zmienia nazwę |
+| 2.6 | Sekcje zwijane: Przekształcenie, Wygląd, Zaawansowane (grupa, efekt tła, squash, maska) |
+| 2.7 | „Dopasuj wysokość” przy W/H; ID i typ elementu w „Zaawansowane”; stan kodu ręcznego/scena odłączona w zakładce Kod; wartości TITLE wyżej niż layout; wyrównanie liczone z prostokąta po obrocie (`canvas::layer_frame_bbox`) |
+| 2.8 | Wiele warstw: nagłówek „Zaznaczono warstw: N”, wyrównanie oraz wspólne przesunięcie i krycie |
+| 2.9 | Stan sceny/kodu w jednym miejscu (Kod) |
+| 3.1, 3.2 | `edit_opt` / `edit_or`: samo rysowanie nie wpisuje wartości domyślnych (test `edit_helpers_do_not_materialize_defaults`); `sync_fallback` nie pisze, gdy wartość się nie zmieniła |
+| 3.3, 3.6 | Stała `INHERIT`; usunięty martwy kod `tmp_title` i pusta linia |
+
+Nie zrobiono (świadomie): edycja pozycji Stop w inspektorze (potrzebuje planu odtwarzania), druga ścieżka edycji wartości TITLE ↔ `default_text` (nadal ręczna synchronizacja przy edycji warstwy tekstowej).
+
+Weryfikacja: fmt, clippy, `cargo test --workspace` (94 + testy silnika), WASM parity i testy UI przechodzą; `make e2e` zgłasza `graphic_drop_rotate` (poz. 5,3 px, próg 3 px), **to samo na czystym HEAD przed zmianami**, więc nie jest skutkiem tej zmiany. Wzorce `tests/ui/golden` odświeżone (`tools/ui-shots.py --update`).
