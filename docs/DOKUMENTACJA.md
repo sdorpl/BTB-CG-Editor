@@ -1,7 +1,7 @@
 # BTB CGEditor – dokumentacja aplikacji
 
 Dokument opisuje, czym jest aplikacja, co potrafi i jak jest zbudowana. Dla osób zaczynających pracę: [INSTRUKCJA-poczatkujacy.md](INSTRUKCJA-poczatkujacy.md).
-Plany i decyzje silnika animacji: [PLAN-btb-motion.md](PLAN-btb-motion.md). Analizy: [ANALIZA-edytory.md](ANALIZA-edytory.md), [RAPORT-panel-warstwy.md](RAPORT-panel-warstwy.md).
+Propozycje kolejnych funkcji: [PROPOZYCJE-FUNKCJI.md](PROPOZYCJE-FUNKCJI.md). Plany i decyzje silnika animacji: [PLAN-btb-motion.md](PLAN-btb-motion.md). Analizy: [ANALIZA-edytory.md](ANALIZA-edytory.md), [RAPORT-panel-warstwy.md](RAPORT-panel-warstwy.md).
 
 > Dokumentacja jest aktualizowana przy każdym commicie zmieniającym aplikację (zasada w `CLAUDE.md`).
 
