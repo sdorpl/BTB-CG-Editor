@@ -9,12 +9,7 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
     ui.horizontal_wrapped(|ui| {
         for lt in LayerType::ALL {
             if ui.small_button(format!("{} {}", lt.icon(), lt.label())).on_hover_text(tr("layers.add")).clicked() {
-                let mut l = Layer::new(lt);
-                l.x = ((scene.frame.w - l.w) / 2.0).max(0.0).round();
-                l.y = ((scene.frame.h - l.h) / 2.0).max(0.0).round();
-                let id = l.id.clone();
-                scene.layers.push(l);
-                *selected = vec![id];
+                add_layer(scene, lt, selected);
             }
         }
     });
@@ -74,6 +69,22 @@ pub fn draw_layers_panel(ui: &mut Ui, scene: &mut Scene, selected: &mut Vec<Stri
         scene.layers.retain(|l| !delete.contains(&l.id));
         selected.retain(|s| !delete.contains(s));
     }
+}
+
+/// Nowa warstwa na środku ramki i zaznaczona. Tekst jest stały (bez pola TITLE), żeby edycja zmieniała tylko tę warstwę.
+pub fn add_layer(scene: &mut Scene, lt: LayerType, selected: &mut Vec<String>) -> String {
+    let mut l = Layer::new(lt);
+    if lt == LayerType::Text {
+        l.field = None;
+        l.default_text = None;
+        l.text = Some(crate::i18n::tr("preset.default_text").into());
+    }
+    l.x = ((scene.frame.w - l.w) / 2.0).max(0.0).round();
+    l.y = ((scene.frame.h - l.h) / 2.0).max(0.0).round();
+    let id = l.id.clone();
+    scene.layers.push(l);
+    *selected = vec![id.clone()];
+    id
 }
 
 pub fn duplicate_layer(scene: &mut Scene, id: &str, selected: &mut Vec<String>) {

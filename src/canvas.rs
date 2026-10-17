@@ -43,6 +43,7 @@ pub struct CanvasState {
     marquee: Option<Rect>,
     pub editing: Option<String>,
     edit_buf: String,
+    edit_fresh: bool,
     /// Zaznaczony klucz ścieżki ruchu zaznaczonej warstwy (nakładka na kanwie); synchronizowany z osią czasu.
     pub path_sel: Option<usize>,
     /// Ustawiane po kliknięciu klucza ścieżki na kanwie: (warstwa, indeks); aplikacja przenosi to do osi czasu.
@@ -55,7 +56,7 @@ pub struct CanvasState {
 impl Default for CanvasState {
     fn default() -> Self {
         Self { zoom: 0.5, pan: Vec2::ZERO, bg: Bg::Checker, safe_areas: true, snap: true, needs_fit: true, needs_fit_frame: false, last_rect: Rect::NOTHING, drag: None,
-               guides_x: vec![], guides_y: vec![], marquee: None, editing: None, edit_buf: String::new(), path_sel: None, path_picked: None, overlay_keys: vec![], overlay_handles: vec![] }
+               guides_x: vec![], guides_y: vec![], marquee: None, editing: None, edit_buf: String::new(), edit_fresh: false, path_sel: None, path_picked: None, overlay_keys: vec![], overlay_handles: vec![] }
     }
 }
 
@@ -411,8 +412,9 @@ pub fn draw_canvas(
                 if let Some(id) = hit_layer(p, scene) {
                     if let Some(l) = scene.layers.iter().find(|l| l.id == id) {
                         if l.layer_type == crate::model::LayerType::Text && !l.locked {
-                            st.edit_buf = l.default_text.clone().unwrap_or_default();
+                            st.edit_buf = if l.field.as_deref().is_some_and(|f| !f.is_empty()) { l.default_text.clone() } else { l.text.clone() }.unwrap_or_default();
                             st.editing = Some(id.clone());
+                            st.edit_fresh = true;
                             *selected = vec![id];
                         }
                     }
@@ -533,29 +535,66 @@ pub fn draw_canvas(
         painter.rect(r, 0.0, Color32::from_rgba_unmultiplied(59, 130, 246, 30), Stroke::new(1.0, Color32::from_rgb(59, 130, 246)));
     }
 
-    // inline text editing overlay
+    // inline text editing overlay: pole tekstu + pasek formatowania nad nim
     if let Some(id) = st.editing.clone() {
-        if let Some(l) = scene.layers.iter().find(|l| l.id == id) {
-            let m = view_aff.mul(static_aff(l, frame));
+        if let Some(idx) = scene.layers.iter().position(|l| l.id == id) {
+            let m = view_aff.mul(static_aff(&scene.layers[idx], frame));
+            let (lw, lh) = (scene.layers[idx].w, scene.layers[idx].h);
             let bb = {
-                let pts = [Pos2::ZERO, Pos2::new(l.w, 0.0), Pos2::new(l.w, l.h), Pos2::new(0.0, l.h)].map(|q| m.apply(q));
+                let pts = [Pos2::ZERO, Pos2::new(lw, 0.0), Pos2::new(lw, lh), Pos2::new(0.0, lh)].map(|q| m.apply(q));
                 let mut r = Rect::from_min_max(pts[0], pts[0]);
                 for q in pts { r.extend_with(q); }
                 r
             };
             let er = Rect::from_min_size(bb.min, Vec2::new(bb.width().max(140.0), bb.height().max(26.0)));
+            let before = st.edit_buf.clone();
             let resp = ui.put(er, egui::TextEdit::singleline(&mut st.edit_buf).font(egui::FontId::proportional(15.0)));
-            resp.request_focus();
+            if st.edit_fresh { resp.request_focus(); st.edit_fresh = false; }
+
+            let tb_pos = Pos2::new(er.min.x.clamp(rect.min.x + 4.0, (rect.max.x - 420.0).max(rect.min.x + 4.0)), (er.min.y - 38.0).max(rect.min.y + 4.0));
+            let tb = egui::Area::new(egui::Id::new("text_format_bar")).order(egui::Order::Foreground).fixed_pos(tb_pos).show(&ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        if let Some(font) = scene.layers[idx].font.as_mut() { format_bar(ui, font); }
+                    });
+                });
+            });
+
+            if st.edit_buf != before { out.edited_text = Some((id.clone(), st.edit_buf.clone())); }
             let enter = ui.input(|i| i.key_pressed(Key::Enter));
             let esc = ui.input(|i| i.key_pressed(Key::Escape));
-            if enter || resp.lost_focus() && !esc {
-                out.edited_text = Some((id, st.edit_buf.clone()));
-                st.editing = None;
-            } else if esc {
+            let popup_open = ctx.memory(|m| m.any_popup_open());
+            let outside = ui.input(|i| i.pointer.any_pressed()) && !popup_open
+                && ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| !er.contains(p) && !tb.response.rect.contains(p));
+            if enter || esc || outside {
+                if enter || outside { out.edited_text = Some((id, st.edit_buf.clone())); }
                 st.editing = None;
             }
         } else {
             st.editing = None;
+        }
+    }
+
+    // pasek dodawania warstw (jak w Canvie): jedno kliknięcie = nowa warstwa na środku ramki
+    if !inputs.sp.playing && st.editing.is_none() {
+        let mut add = None;
+        egui::Area::new(egui::Id::new("canvas_add_bar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(8.0, 8.0)).show(&ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    for lt in crate::model::LayerType::ALL {
+                        if ui.button(format!("{} {}", lt.icon(), lt.label())).clicked() { add = Some(lt); }
+                    }
+                });
+            });
+        });
+        if let Some(lt) = add {
+            let id = crate::panels::layers::add_layer(scene, lt, selected);
+            if lt == crate::model::LayerType::Text {
+                st.edit_buf = scene.layers.iter().find(|l| l.id == id).and_then(|l| l.text.clone()).unwrap_or_default();
+                st.editing = Some(id);
+                st.edit_fresh = true;
+            }
+            out.interacting = true;
         }
     }
 
@@ -564,6 +603,22 @@ pub fn draw_canvas(
     painter.text(frame_screen.left_top() + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, crate::i18n::trf("canvas.frame_label", &[("w", &frame.0.round()), ("h", &frame.1.round())]), egui::FontId::monospace(10.0), Color32::from_rgb(250, 204, 21));
 
     out
+}
+
+/// Pasek formatowania tekstu (rodzina, rozmiar, B/I, wyrównanie, kolor) nad edytowanym polem.
+fn format_bar(ui: &mut Ui, f: &mut crate::model::FontStyle) {
+    egui::ComboBox::from_id_salt("fb_family").selected_text(f.family.clone()).width(110.0).show_ui(ui, |ui| {
+        for fam in ["Bahnschrift", "Arial", "Helvetica", "Liberation Sans"] { if ui.selectable_label(f.family.eq_ignore_ascii_case(fam), fam).clicked() { f.family = fam.into(); } }
+    });
+    ui.add(egui::DragValue::new(&mut f.size).range(4.0..=500.0).speed(0.5));
+    let mut bold = f.weight.parse::<u32>().unwrap_or(400) >= 600;
+    if ui.toggle_value(&mut bold, egui::RichText::new("B").strong()).changed() { f.weight = if bold { "700" } else { "400" }.into(); }
+    ui.toggle_value(&mut f.italic, egui::RichText::new("I").italics());
+    for (v, g) in [("left", "⬅"), ("center", "↔"), ("right", "➡")] { ui.selectable_value(&mut f.align, v.to_string(), g); }
+    let mut rgba = crate::render::parse_css_color(&f.color).to_srgba_unmultiplied();
+    if ui.color_edit_button_srgba_unmultiplied(&mut rgba).changed() {
+        f.color = if rgba[3] == 255 { format!("#{:02x}{:02x}{:02x}", rgba[0], rgba[1], rgba[2]) } else { format!("rgba({},{},{},{:.2})", rgba[0], rgba[1], rgba[2], rgba[3] as f32 / 255.0) };
+    }
 }
 
 fn st_editing_none(e: &Option<String>) -> bool { e.is_none() }

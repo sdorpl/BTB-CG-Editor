@@ -299,7 +299,7 @@ impl CgEditorApp {
 
     fn apply_text_edit(&mut self, layer_id: &str, text: String) {
         let field = self.element.scene.as_ref().and_then(|s| s.layers.iter().find(|l| l.id == layer_id)).and_then(|l| l.field.clone());
-        if let Some(s) = self.element.scene.as_mut() { if let Some(l) = s.layers.iter_mut().find(|l| l.id == layer_id) { l.default_text = Some(text.clone()); } }
+        if let Some(s) = self.element.scene.as_mut() { if let Some(l) = s.layers.iter_mut().find(|l| l.id == layer_id) { if l.field.as_deref().is_some_and(|f| !f.is_empty()) { l.default_text = Some(text.clone()); } else { l.text = Some(text.clone()); } } }
         if let Some(f) = field.filter(|f| !f.is_empty()) {
             let id = compile::field_id(&f);
             if id == "TITLE" { self.element.title = text; } else { self.element.fields.insert(id, serde_json::Value::String(text)); }
@@ -786,6 +786,17 @@ mod tests {
         let z = h.app.canvas.zoom;
         let w1 = h.layer(idx).w;
         assert!((w0 - w1 - 40.0 / z).abs() < 3.0, "width shrank by ~40/zoom: {} -> {}", w0, w1);
+    }
+
+    #[test]
+    fn added_text_layer_is_static_and_edit_changes_only_its_text() {
+        let mut h = H::new();
+        let mut sel = vec![];
+        let id = crate::panels::layers::add_layer(h.app.element.scene.as_mut().unwrap(), crate::model::LayerType::Text, &mut sel);
+        h.app.apply_text_edit(&id, "Nowy".into());
+        let l = h.app.element.scene.as_ref().unwrap().layers.iter().find(|l| l.id == id).unwrap().clone();
+        assert!(l.field.is_none());
+        assert_eq!(l.text.as_deref(), Some("Nowy"));
     }
 
     #[test]
