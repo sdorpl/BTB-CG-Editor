@@ -162,6 +162,7 @@ Element z kluczami lub ścieżką ruchu dostaje przy każdej kompilacji pole `mo
 | Import z serwera | Plik → Importuj z BTB-CG… (`GET /api/state`: bank + biblioteka; starsze serwery: `db.json`) lub z pliku |
 | Podgląd HTML | Ctrl+P – renderer BTB-CG w przeglądarce (wymaga renderera: import z serwera lub `BTB_CG_DIR`) |
 | Strona dla OBS | `btb-cgeditor --write-motion-html element.json output-motion.html [indeks] [manual]` |
+| Element po kompilacji (kod + `motion`) | `btb-cgeditor --write-element in.json out.json [indeks]` (fixtury dla BTB-CG) |
 
 Strona dla OBS używa silnika animacji skompilowanego do WASM. Parametry adresu: `?obs=1` (źródło aktywne = TAKE,
 nieaktywne = reset), `?auto=1` (TAKE po załadowaniu), `?ws=ws://host:port` (komendy JSON `take`, `off`, `reset`,

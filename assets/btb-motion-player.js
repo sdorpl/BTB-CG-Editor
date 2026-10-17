@@ -2,7 +2,14 @@
  * Konfiguracja: window.BTB_CONFIG = { wasm (base64), director, html, css, data, frame, manual }.
  * API: btb.take() / btb.off() / btb.reset() / btb.update(fields) / btb.tick(dt) (tryb manual).
  * Sterowanie: ?auto=1 (TAKE po załadowaniu), ?obs=1 (źródło aktywne = TAKE, nieaktywne = reset),
- * ?ws=ws://host:port (JSON {cmd:"take"|"off"|"reset"|"update", fields}), postMessage z tym samym JSON. */
+ * ?ws=ws://host:port (JSON {cmd:"take"|"off"|"reset"|"update", fields}), postMessage z tym samym JSON.
+ *
+ * Tryb osadzony (M2.2, BTB-CG `renderer.js`): bez `window.BTB_CONFIG` plik tylko definiuje `window.BtbMotion`:
+ *   BtbMotion.compile(bytes) -> Promise<Module>   (raz na stronę)
+ *   BtbMotion.create(module, { director, tickers, squash, fit, manual, embedded: { root, fx } }) -> Promise<Player>
+ * Każdy element ma własną instancję WASM (silnik trzyma stan globalnie). `embedded.root` = kontener elementu (widoczność
+ * zostaje po stronie renderera), `embedded.fx` = węzeł animowany jako cały element (`.cg-scene`); warstwy to `[data-layer]`.
+ * HTML, auto-szerokość i ściskanie tekstu robi renderer BTB-CG (js_template), odtwarzacz tylko animuje. */
 (function () {
   'use strict';
   var DEF = { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, skew: 0, opacity: 1, ox: 0.5, oy: 0.5, cl: 0, ct: 0, cr: 1, cb: 1, blur: 0, fx: 1, fy: 1, sh: 1, dg: -1, dr: 0, rgb: 0 };
@@ -93,8 +100,9 @@
 
   function Player(cfg, w) {
     this.cfg = cfg; this.w = w; this.dec = new TextDecoder();
-    this.root = document.getElementById('btb-root');
-    this.fx = this.root.querySelector('.btb-fx');
+    this.embedded = !!cfg.embedded;
+    this.root = this.embedded ? cfg.embedded.root : document.getElementById('btb-root');
+    this.fx = this.embedded ? cfg.embedded.fx : this.root.querySelector('.btb-fx');
     this.data = Object.assign({}, cfg.data);
     this.applied = {}; this.layers = {};
     this.holding = false; this.pendingOff = false; this.visible = false; this.running = false;
@@ -114,12 +122,13 @@
   P.emit = function (ev, d) { (this.listeners[ev] || []).forEach(function (f) { f(d); }); };
 
   P.render = function () {
-    this.fx.innerHTML = renderTpl(this.cfg.html, this.data);
+    if (!this.embedded) this.fx.innerHTML = renderTpl(this.cfg.html, this.data);
     this.layers = {};
     var self = this;
     this.fx.querySelectorAll('[data-layer]').forEach(function (e) { self.layers[e.getAttribute('data-layer')] = e; });
     this.applied = {};
     this.setupClocks(); this.setupTickers(); this.setupText();
+    if (this.embedded) return;
     this.fit(); this.squash();
     if (document.fonts && document.fonts.ready && !this._fontsSquash) { this._fontsSquash = true; document.fonts.ready.then(function () { self.fit(); self.squash(); }); }
   };
@@ -334,7 +343,7 @@
   P.take = function () {
     this.render();
     this.w.start(); this.holding = false; this.pendingOff = false; this.wall = 0;
-    this.visible = true; this.root.style.visibility = 'visible';
+    this.visible = true; if (!this.embedded) this.root.style.visibility = 'visible';
     this.frame(); this.emit('take', {});
     this.startLoop();
   };
@@ -343,7 +352,13 @@
     if (this.holding) { this.holding = false; this.beforeOut(); this.w.resume(); } else if (this.w.playing()) this.pendingOff = true;
     this.emit('off', {});
   };
-  P.hide = function () { this.visible = false; this.holding = false; this.root.style.visibility = 'hidden'; this.stopLoop(); };
+  P.hide = function () { this.visible = false; this.holding = false; if (!this.embedded) this.root.style.visibility = 'hidden'; this.stopLoop(); };
+  // osadzony: zwalnia zasoby (pętlę, zegar); instancję WASM zbiera GC
+  P.destroy = function () {
+    this.stopLoop(); this.visible = false; clearInterval(this._clock);
+    var self = this; Object.keys(this.applied || {}).forEach(function (id) { var e = id === 'element' ? self.fx : self.layers[id]; if (e) clear(e); });
+    this.applied = {};
+  };
   P.reset = function () { this.w.stop(); this.hide(); };
   P.cycle = function (holdMs) { var s = this; this.take(); setTimeout(function () { s.off(); }, holdMs || 2500); };
 
@@ -381,5 +396,9 @@
     if (q.get('auto') === '1') p.take();
     window.dispatchEvent(new Event('btb-ready'));
   }
-  boot().catch(function (e) { console.error('[btb-motion]', e); window.btbError = String(e); });
+  window.BtbMotion = {
+    compile: function (bytes) { return WebAssembly.compile(bytes); },
+    create: function (module, cfg) { return WebAssembly.instantiate(module, {}).then(function (inst) { return new Player(cfg, inst.exports); }); },
+  };
+  if (window.BTB_CONFIG) boot().catch(function (e) { console.error('[btb-motion]', e); window.btbError = String(e); });
 })();

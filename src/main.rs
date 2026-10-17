@@ -111,6 +111,16 @@ fn main() -> eframe::Result<()> {
         std::fs::write(&raw[2], preview::build_html(&el, "").expect("preview")).expect("write");
         return Ok(());
     }
+    if raw.first().map(|s| s.as_str()) == Some("--write-element") {
+        // --write-element in.json out.json [index] : element po kompilacji (kod + artefakt `motion`) jako plik v3 (fixtury dla BTB-CG)
+        let list = importer::parse_elements(&std::fs::read_to_string(&raw[1]).expect("read")).expect("parse");
+        let i: usize = raw.get(3).and_then(|v| v.parse().ok()).unwrap_or(0);
+        let mut el = list.into_iter().nth(i).expect("element").element;
+        if el.scene.is_some() { compile::recompile(&mut el); }
+        let doc = serde_json::json!({ "_exportVersion": 3, "elements": [&el] });
+        std::fs::write(&raw[2], serde_json::to_string_pretty(&doc).expect("json")).expect("write");
+        return Ok(());
+    }
     if raw.first().map(|s| s.as_str()) == Some("--write-motion-html") {
         // --write-motion-html in.json out.html [index] [manual] : samodzielna strona dla OBS (silnik btb-motion/WASM)
         let list = importer::parse_elements(&std::fs::read_to_string(&raw[1]).expect("read")).expect("parse");
