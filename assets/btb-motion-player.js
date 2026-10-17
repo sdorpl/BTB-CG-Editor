@@ -120,8 +120,37 @@
     this.fx.querySelectorAll('[data-layer]').forEach(function (e) { self.layers[e.getAttribute('data-layer')] = e; });
     this.applied = {};
     this.setupClocks(); this.setupTickers(); this.setupText();
-    this.squash();
-    if (document.fonts && document.fonts.ready && !this._fontsSquash) { this._fontsSquash = true; document.fonts.ready.then(function () { self.squash(); }); }
+    this.fit(); this.squash();
+    if (document.fonts && document.fonts.ready && !this._fontsSquash) { this._fontsSquash = true; document.fonts.ready.then(function () { self.fit(); self.squash(); }); }
+  };
+  // auto-szerokość (M2.0): ta sama reguła co fitRun w SceneModel.compile (BTB-CG) i compile.rs; cfg.fit = fitSpec albo null
+  P.fit = function () {
+    var spec = this.cfg.fit; if (!spec) return;
+    var fx = this.fx, layer = function (n) { return fx.querySelector('.cg-l' + n); }, dl = {}, grow = null;
+    spec.auto.forEach(function (a) {
+      var cl = layer(a.n), t = cl && cl.querySelector('.cg-t'); if (!t) return;
+      var pw = t.style.getPropertyValue('width'), pp = t.style.getPropertyPriority('width');
+      var pf = t.style.getPropertyValue('flex'), pfp = t.style.getPropertyPriority('flex');
+      t.style.setProperty('width', 'max-content', 'important'); t.style.setProperty('flex', 'none', 'important');
+      var nat = t.offsetWidth;
+      if (pw) t.style.setProperty('width', pw, pp); else t.style.removeProperty('width');
+      if (pf) t.style.setProperty('flex', pf, pfp); else t.style.removeProperty('flex');
+      if (!(nat > 0)) return;
+      var W = nat;
+      if (a.minW !== null) W = Math.max(W, a.minW);
+      if (a.maxW !== null) W = Math.min(W, a.maxW);
+      var d = W - a.w, sh = a.align === 'right' ? -d : a.align === 'center' ? -d / 2 : 0;
+      dl[a.n] = { d: d, sh: sh };
+      cl.style.width = W + 'px'; cl.style.left = (a.x + sh) + 'px';
+      grow = grow === null ? d + sh : Math.max(grow, d + sh);
+    });
+    spec.layers.forEach(function (f) {
+      var cl = layer(f.n), k = dl[f.to]; if (!cl || !k) return;
+      if (f.mode === 'follow') cl.style.left = (f.x + k.d + k.sh) + 'px';
+      else { cl.style.width = (f.w + k.d) + 'px'; cl.style.left = (f.x + k.sh) + 'px'; }
+    });
+    var sc = fx.querySelector('.cg-scene');
+    if (grow !== null && sc) sc.style.width = (spec.frameW + grow) + 'px';
   };
   // ściskanie tekstu jak applyGlobalSquashing w renderer.js: dopasowanie do kontenera albo (BADGE) wg długości
   P.squash = function () {

@@ -26,6 +26,7 @@ if command -v node >/dev/null && [ -d "$BTB_CG/node_modules/playwright" ]; then
   step "e2e w Chromium: strona wyjściowa + zgodność z GSAP (BTB-CG: $BTB_CG)"
   cargo build -q
   BTB_CG_DIR="$BTB_CG" node tools/e2e-motion.js
+  BTB_CG_DIR="$BTB_CG" node tools/e2e-fit.js
   BTB_CG_DIR="$BTB_CG" STRICT=1 node tools/e2e-gsap-compare.js
   BTB_CG_DIR="$BTB_CG" E2E_SET=e2e-matrix STRICT=1 node tools/e2e-gsap-compare.js
   BTB_CG_DIR="$BTB_CG" E2E_SET=e2e-text STRICT=1 node tools/e2e-gsap-compare.js

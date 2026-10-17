@@ -38,7 +38,10 @@ pub fn config(el: &Element, manual: bool) -> Result<Value, String> {
         .filter(|(_, l)| l.layer_type == LayerType::Ticker)
         .map(|(i, l)| json!({ "n": i + 1, "speed": l.speed.unwrap_or(100.0), "sep": l.separator.clone().unwrap_or_else(|| "•".into()), "gap": l.gap.unwrap_or(48.0) }))
         .collect();
+    let visible: Vec<&crate::model::Layer> = scene.layers.iter().filter(|l| l.visible).collect();
+    let fit: Value = crate::compile::fit_spec(&visible, fw).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(Value::Null);
     Ok(json!({
+        "fit": fit,
         "director": director,
         "html": el.html_template,
         "css": el.css_template.replace("{{ID}}", "btb-root"),

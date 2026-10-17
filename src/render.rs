@@ -489,11 +489,68 @@ fn clock_text(format: &str) -> String {
     if format == "HH:MM" { now.format("%H:%M").to_string() } else { now.format("%H:%M:%S").to_string() }
 }
 
+/// Naturalna szerokość tekstu (bez ściskania) w px sceny; ten sam układ co w `draw_text`.
+pub fn text_width(ctx: &Context, font: &FontStyle, text: &str) -> f32 {
+    let text = apply_transform(text, &font.transform);
+    if text.is_empty() { return 0.0; }
+    let (family, _, _) = resolve_font(&font.family, &font.weight);
+    let mut job = LayoutJob::default();
+    job.wrap.max_width = f32::INFINITY;
+    job.append(&text, 0.0, TextFormat {
+        font_id: FontId::new(font.size.max(1.0), family),
+        extra_letter_spacing: font.letter_spacing,
+        line_height: Some(font.size * font.line_height),
+        color: Color32::WHITE,
+        italics: font.italic,
+        ..Default::default()
+    });
+    ctx.fonts(|f| f.layout_job(job)).rect.width()
+}
+
+/// Auto-szerokość (M2.0, reguła z docs/plans/M2 §5 w BTB-CG; lustro `fitRun` z `SceneModel.compile`):
+/// z naturalnych szerokości tekstów (`nat`: id warstwy → px) liczy nową pozycję i szerokość warstw (id → (x, w)).
+/// Obejmuje warstwy `autoW` i warstwy `fitText` (size/follow). Warstwy bez zmiany nie trafiają do wyniku.
+pub fn fit_adjust(layers: &[&Layer], nat: &std::collections::HashMap<String, f32>) -> std::collections::HashMap<String, (f32, f32)> {
+    let mut out = std::collections::HashMap::new();
+    let mut dl: std::collections::HashMap<&str, (f32, f32)> = std::collections::HashMap::new();
+    for l in layers.iter().filter(|l| l.layer_type == LayerType::Text && l.auto_w == Some(true)) {
+        let Some(&n) = nat.get(&l.id) else { continue };
+        if !(n > 0.0) || !n.is_finite() { continue; }
+        let mut w = n;
+        if let Some(m) = l.min_w { w = w.max(m); }
+        if let Some(m) = l.max_w { w = w.min(m); }
+        let d = w - l.w;
+        let sh = match l.font.as_ref().map(|f| f.align.as_str()) { Some("right") => -d, Some("center") => -d / 2.0, _ => 0.0 };
+        dl.insert(l.id.as_str(), (d, sh));
+        out.insert(l.id.clone(), (l.x + sh, w));
+    }
+    for l in layers {
+        let Some(f) = &l.fit_text else { continue };
+        let Some(&(d, sh)) = dl.get(f.to.as_str()) else { continue };
+        if f.to == l.id { continue; }
+        if f.mode == "follow" { out.insert(l.id.clone(), (l.x + d + sh, l.w)); } else { out.insert(l.id.clone(), (l.x + sh, l.w + d)); }
+    }
+    out
+}
+
 pub fn draw_scene(painter: &Painter, ctx: &Context, view: &View, sp: &SceneParams) {
     let frame = (sp.scene.frame.w, sp.scene.frame.h);
     let zoom = view.zoom;
     let default_tr = Transform::default();
-    for l in sp.scene.layers.iter().filter(|l| l.visible) {
+    let visible: Vec<&Layer> = sp.scene.layers.iter().filter(|l| l.visible).collect();
+    let fit = if visible.iter().any(|l| l.auto_w == Some(true)) {
+        let nat: std::collections::HashMap<String, f32> = visible.iter()
+            .filter(|l| l.layer_type == LayerType::Text && l.auto_w == Some(true))
+            .map(|l| (l.id.clone(), text_width(ctx, &l.font_or_default(), &sp.values.text_for(l))))
+            .collect();
+        fit_adjust(&visible, &nat)
+    } else { Default::default() };
+    for l0 in visible.iter().copied() {
+        let adjusted;
+        let l: &Layer = match fit.get(&l0.id) {
+            Some(&(x, w)) => { let mut c = l0.clone(); c.x = x; c.w = w; adjusted = c; &adjusted }
+            None => l0,
+        };
         let fx = sp.fx.get(&l.id);
         let tr = fx.and_then(|f| f.tr.as_ref()).unwrap_or(&default_tr);
         let field_m = layer_to_field(l, &sp.frame_aff, frame, &sp.elem_tr, tr);
@@ -787,5 +844,46 @@ mod strip_tests {
     fn raw_newlines_collapse_but_br_breaks() {
         assert_eq!(strip_html("a\nb"), "a b");
         assert_eq!(strip_html("a<br>b"), "a\nb");
+    }
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn text(id: &str, x: f32, w: f32, align: &str) -> Layer {
+        let mut l = Layer::new(LayerType::Text);
+        l.id = id.into(); l.x = x; l.w = w; l.auto_w = Some(true);
+        if let Some(f) = l.font.as_mut() { f.align = align.into(); }
+        l
+    }
+    fn shape(id: &str, x: f32, w: f32, to: &str, mode: &str) -> Layer {
+        let mut l = Layer::new(LayerType::Shape);
+        l.id = id.into(); l.x = x; l.w = w; l.fit_text = Some(FitText { to: to.into(), mode: mode.into() });
+        l
+    }
+
+    #[test]
+    fn size_and_follow_track_text_width() {
+        let (bg, tx, dot) = (shape("bg", 0.0, 220.0, "tx", "size"), text("tx", 40.0, 140.0, "left"), shape("dot", 190.0, 20.0, "tx", "follow"));
+        let r = fit_adjust(&[&bg, &tx, &dot], &HashMap::from([("tx".to_string(), 200.0)]));
+        assert_eq!(r["tx"], (40.0, 200.0));
+        assert_eq!(r["bg"], (0.0, 280.0));
+        assert_eq!(r["dot"], (250.0, 20.0));
+    }
+
+    #[test]
+    fn alignment_clamp_and_bad_input() {
+        let (mut tx, bg) = (text("tx", 100.0, 100.0, "right"), shape("bg", 0.0, 300.0, "tx", "size"));
+        tx.max_w = Some(150.0);
+        let r = fit_adjust(&[&tx, &bg], &HashMap::from([("tx".to_string(), 400.0)]));
+        assert_eq!(r["tx"], (50.0, 150.0));                       // prawy brzeg stały, klamra maxW
+        assert_eq!(r["bg"], (-50.0, 350.0));
+        for bad in [0.0, -5.0, f32::NAN, f32::INFINITY] {
+            assert!(fit_adjust(&[&tx], &HashMap::from([("tx".to_string(), bad)])).is_empty());
+        }
+        let orphan = shape("o", 0.0, 10.0, "brak", "size");
+        assert!(fit_adjust(&[&orphan], &HashMap::new()).is_empty());
     }
 }

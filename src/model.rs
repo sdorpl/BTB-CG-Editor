@@ -272,6 +272,16 @@ impl LayerType {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FitText {
+    /// `id` warstwy tekstowej z `autoW`.
+    pub to: String,
+    /// `size` (domyślnie): szerokość rośnie o deltę; `follow`: pozycja przesuwa się o deltę.
+    #[serde(default = "d_fit_size")]
+    pub mode: String,
+}
+fn d_fit_size() -> String { "size".into() }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Layer {
     pub id: String,
@@ -331,6 +341,16 @@ pub struct Layer {
     pub font: Option<FontStyle>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub squash: Option<bool>,
+    /// Auto-szerokość (M2.0): szerokość warstwy tekstowej podąża za tekstem (`w` = szerokość z projektu), z klamrą `minW`/`maxW`.
+    #[serde(rename = "autoW", default, skip_serializing_if = "Option::is_none")]
+    pub auto_w: Option<bool>,
+    #[serde(rename = "minW", default, skip_serializing_if = "Option::is_none")]
+    pub min_w: Option<f32>,
+    #[serde(rename = "maxW", default, skip_serializing_if = "Option::is_none")]
+    pub max_w: Option<f32>,
+    /// Warstwa podąża za szerokością tekstu innej warstwy z `autoW` (tło `size`, ikona/kropka `follow`).
+    #[serde(rename = "fitText", default, skip_serializing_if = "Option::is_none")]
+    pub fit_text: Option<FitText>,
     // image / video
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub src: Option<String>,
@@ -369,7 +389,7 @@ impl Layer {
             x: 0.0, y: 0.0, w: 200.0, h: 60.0, rotation: 0.0, skew: 0.0, opacity: 1.0,
             motion: Motion::default(), keys: vec![], path: None, group: None,
             fill: None, stroke: None, radius: None, shadow: None, effect: None,
-            field: None, text: None, default_text: None, font: None, squash: None,
+            field: None, text: None, default_text: None, font: None, squash: None, auto_w: None, min_w: None, max_w: None, fit_text: None,
             src: None, fit: None, bind: None, mask_layer: None, video_loop: None, muted: None,
             format: None, speed: None, separator: None, gap: None, extra: Extra::new(),
         };

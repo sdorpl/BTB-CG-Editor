@@ -172,6 +172,52 @@ pub fn group_motion_pair(scene: &Scene, l: &Layer) -> (Option<MotionSpec>, Optio
     (get("in"), get("out"))
 }
 
+/// Specyfikacja auto-szerokości (JSON jak `fitSpec` w `SceneModel.compile`); `None`, gdy brak warstw `autoW`. `layers` = widoczne warstwy.
+pub fn fit_spec(layers: &[&Layer], fw: f32) -> Option<String> {
+    let n_of = |id: &str| layers.iter().position(|l| l.id == id).map(|i| i + 1);
+    let opt = |v: Option<f32>| v.map(fmt).unwrap_or_else(|| "null".into());
+    let mut auto = vec![];
+    for (idx, l) in layers.iter().enumerate() {
+        if l.layer_type == LayerType::Text && l.auto_w == Some(true) {
+            let align = l.font.as_ref().map(|f| f.align.clone()).filter(|a| !a.is_empty()).unwrap_or_else(|| "left".into());
+            auto.push((idx + 1, format!(
+                "{{\"n\":{},\"x\":{},\"w\":{},\"align\":{},\"minW\":{},\"maxW\":{}}}",
+                idx + 1, fmt(l.x), fmt(l.w), serde_json::to_string(&align).unwrap_or_else(|_| "\"left\"".into()), opt(l.min_w), opt(l.max_w)
+            )));
+        }
+    }
+    if auto.is_empty() { return None; }
+    let mut fl = vec![];
+    for (idx, l) in layers.iter().enumerate() {
+        let Some(f) = &l.fit_text else { continue };
+        let Some(to) = n_of(&f.to) else { continue };
+        if to == idx + 1 || !auto.iter().any(|(n, _)| *n == to) { continue; }
+        let mode = if f.mode == "follow" { "follow" } else { "size" };
+        fl.push(format!("{{\"n\":{},\"to\":{},\"mode\":\"{}\",\"x\":{},\"w\":{}}}", idx + 1, to, mode, fmt(l.x), fmt(l.w)));
+    }
+    Some(format!("{{\"frameW\":{},\"auto\":[{}],\"layers\":[{}]}}", fmt(fw), auto.iter().map(|(_, a)| a.as_str()).collect::<Vec<_>>().join(","), fl.join(",")))
+}
+
+fn fit_js(layers: &[&Layer], fw: f32) -> String {
+    match fit_spec(layers, fw) { Some(spec) => format!("    const fitSpec = {};\n{}", spec, FIT_RUN), None => String::new() }
+}
+
+const FIT_RUN: &str = "    const fitRun = () => {\n        if (!root.isConnected) return;\n        const dl = {}; let grow = null;\n        \
+fitSpec.auto.forEach(a => {\n            const cl = layer(a.n), t = cl && cl.querySelector('.cg-t');\n            if (!t) return;\n            \
+const pw = t.style.getPropertyValue('width'), pp = t.style.getPropertyPriority('width');\n            \
+const pf = t.style.getPropertyValue('flex'), pfp = t.style.getPropertyPriority('flex');\n            \
+t.style.setProperty('width', 'max-content', 'important'); t.style.setProperty('flex', 'none', 'important');\n            const nat = t.offsetWidth;\n            \
+if (pw) t.style.setProperty('width', pw, pp); else t.style.removeProperty('width');\n            \
+if (pf) t.style.setProperty('flex', pf, pfp); else t.style.removeProperty('flex');\n            if (!(nat > 0)) return;\n            \
+let W = nat;\n            if (a.minW !== null) W = Math.max(W, a.minW);\n            if (a.maxW !== null) W = Math.min(W, a.maxW);\n            \
+const d = W - a.w, sh = a.align === 'right' ? -d : a.align === 'center' ? -d / 2 : 0;\n            dl[a.n] = { d, sh };\n            \
+cl.style.width = W + 'px'; cl.style.left = (a.x + sh) + 'px';\n            grow = grow === null ? d + sh : Math.max(grow, d + sh);\n        });\n        \
+fitSpec.layers.forEach(f => {\n            const cl = layer(f.n), k = dl[f.to];\n            if (!cl || !k) return;\n            \
+if (f.mode === 'follow') cl.style.left = (f.x + k.d + k.sh) + 'px';\n            \
+else { cl.style.width = (f.w + k.d) + 'px'; cl.style.left = (f.x + k.sh) + 'px'; }\n        });\n        \
+if (grow !== null) scene.style.width = (fitSpec.frameW + grow) + 'px';\n    };\n    fitRun();\n    \
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitRun);\n";
+
 pub fn compile(scene: &Scene) -> Compiled {
     let resolved;
     let scene = if crate::links::has_links(scene) {
@@ -365,6 +411,7 @@ pub fn compile(scene: &Scene) -> Compiled {
                if (half > 0) tickerTweens.push(gsap.fromTo(trk, { x: 0 }, { x: -half, duration: half / t.speed, ease: 'none', repeat: -1 }));\n        });\n    };\n    \
                const stopTickers = () => { tickerTweens.forEach(t => t.kill()); tickerTweens = []; };\n";
     }
+    js += &fit_js(&layers, fw);
     js += &format!("    const textNs = {};\n", serde_json::to_string(&text_ns).unwrap_or_else(|_| "{}".into()));
     js += "    const motionOf = n => motions.find(m => m.n === n) || {};\n    \
            const on = c => c && c.type && c.type !== 'none';\n    CGMotion.mount(root, {\n        container: scene,\n        \
@@ -506,5 +553,34 @@ mod parity_tests {
             if a != item["ocgInputs"] { diffs.push(format!("{file} ocgInputs differ")); }
         }
         assert!(diffs.is_empty(), "Rust ≠ JS compiler:\n{}", diffs.join("\n"));
+    }
+
+    /// Auto-szerokość (M2.0): scena z `autoW`/`fitText` kompiluje się w Rust tak samo jak w `SceneModel` (BTB-CG).
+    #[test]
+    fn compile_fit_text_matches_btb_cg_scene_model() {
+        let root = std::path::Path::new("/home/maciej/Nextcloud/GitHub/BTB-CG-System-alpha");
+        if !root.join("scene-model.js").exists() { return; }
+        let scene_json = r##"{"version":1,"frame":{"w":300,"h":60},"layers":[
+            {"id":"bg","type":"shape","name":"bg","x":0,"y":0,"w":220,"h":60,"fill":{"type":"solid","color":"#c00"},"fitText":{"to":"tx","mode":"size"}},
+            {"id":"tx","type":"text","name":"tx","x":40,"y":0,"w":140,"h":60,"field":"TITLE","defaultText":"NA ŻYWO","autoW":true,"minW":50,"squash":false,
+             "font":{"family":"Bahnschrift","size":30,"weight":"700","color":"#fff","align":"right"}},
+            {"id":"dot","type":"shape","name":"dot","x":190,"y":20,"w":20,"h":20,"fill":{"type":"solid","color":"#fff"},"fitText":{"to":"tx","mode":"follow"}},
+            {"id":"bad","type":"shape","name":"bad","x":1,"y":1,"w":5,"h":5,"fill":{"type":"solid","color":"#000"},"fitText":{"to":"nie-ma","mode":"size"}}]}"##;
+        let path = std::env::temp_dir().join("btb-fit-scene.json");
+        std::fs::write(&path, scene_json).unwrap();
+        let Ok(out) = std::process::Command::new("node")
+            .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/tools/js-compile-dump.js")).arg(root).arg("--scene").arg(&path).output() else { return };
+        assert!(out.status.success(), "node: {}", String::from_utf8_lossy(&out.stderr));
+        let js: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        let scene: crate::model::Scene = serde_json::from_str(scene_json).unwrap();
+        let c = compile(&scene);
+        for (name, mine, theirs) in [("html", c.html.as_str(), js["html"].as_str().unwrap_or("")), ("css", c.css.as_str(), js["css"].as_str().unwrap_or("")), ("js", c.js.as_str(), js["js"].as_str().unwrap_or(""))] {
+            if mine != theirs {
+                let at = mine.chars().zip(theirs.chars()).position(|(a, b)| a != b).unwrap_or(mine.len().min(theirs.len()));
+                let ctx = |s: &str| s.chars().skip(at.saturating_sub(60)).take(140).collect::<String>();
+                panic!("{name}: len {} vs {} @ {at}\n  rust: {}\n  js:   {}", mine.len(), theirs.len(), ctx(mine), ctx(theirs));
+            }
+        }
+        assert!(c.js.contains("const fitSpec"), "brak fitSpec w js");
     }
 }

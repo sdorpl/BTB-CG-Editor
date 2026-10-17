@@ -5,6 +5,14 @@
 const fs = require('fs'), path = require('path');
 const root = path.resolve(process.argv[2] || '.');
 const SceneModel = require(path.join(root, 'scene-model.js'));
+// tryb pojedynczej sceny: node js-compile-dump.js <BTB-CG> --scene plik.json → { html, css, js, ocgInputs }
+const si = process.argv.indexOf('--scene');
+if (si > 0) {
+    const el = { id: 'x', name: 'x', type: 'BADGE', title: '' };
+    SceneModel.applyToElement(el, JSON.parse(fs.readFileSync(process.argv[si + 1], 'utf8')));
+    process.stdout.write(JSON.stringify({ html: el.html_template, css: el.css_template, js: el.js_template, ocgInputs: el.ocgInputs }));
+    process.exit(0);
+}
 const dir = path.join(root, 'templates');
 const out = [];
 for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.json')).sort()) {
