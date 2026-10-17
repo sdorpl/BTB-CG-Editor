@@ -270,6 +270,7 @@
   "text.fixed": "fixed",
   "text.default": "Default text",
   "text.static": "Fixed text",
+  "text.fit_h": "Fit height to text ({h} px)",
   "text.squash": "Text squash",
   "font.title": "Font",
   "font.family": "Family",

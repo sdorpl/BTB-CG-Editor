@@ -62,7 +62,12 @@ fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
     ui.separator();
     match layer.layer_type {
         LayerType::Shape => shape_props(ui, layer),
-        LayerType::Text => text_props(ui, layer),
+        LayerType::Text => {
+            // Treść domyślna jest też wartością pola: podgląd bierze najpierw `title`/`fields`, więc bez synchronizacji edycja nic nie zmieniała.
+            if let Some((fid, text)) = text_props(ui, layer) {
+                if fid == "TITLE" { el.title = text; } else { el.fields.insert(fid, serde_json::Value::String(text)); }
+            }
+        }
         LayerType::Image => media_props(ui, layer, false, &others),
         LayerType::Video => media_props(ui, layer, true, &others),
         LayerType::Clock => {
@@ -198,7 +203,9 @@ fn radius_ui(ui: &mut Ui, r: &mut Option<Radius>) {
     }
 }
 
-fn text_props(ui: &mut Ui, l: &mut Layer) {
+/// Zwraca (id pola, nowa treść), gdy zmieniono tekst domyślny pola.
+fn text_props(ui: &mut Ui, l: &mut Layer) -> Option<(String, String)> {
+    let mut synced = None;
     heading(ui, tr("text.content"));
     let mut field = l.field.clone().unwrap_or_default();
     ui.horizontal(|ui| {
@@ -212,7 +219,10 @@ fn text_props(ui: &mut Ui, l: &mut Layer) {
     if l.field.is_some() {
         let t = l.default_text.get_or_insert_with(String::new);
         ui.label(tr("text.default"));
-        ui.text_edit_multiline(t);
+        if ui.text_edit_multiline(t).changed() {
+            let fid = crate::compile::field_id(l.field.as_deref().unwrap_or("TITLE"));
+            synced = Some((if fid.is_empty() { "TITLE".to_string() } else { fid }, l.default_text.clone().unwrap_or_default()));
+        }
     } else {
         let t = l.text.get_or_insert_with(String::new);
         ui.label(tr("text.static"));
@@ -222,11 +232,21 @@ fn text_props(ui: &mut Ui, l: &mut Layer) {
     if ui.checkbox(&mut sq, tr("text.squash")).changed() { l.squash = Some(sq); }
     let font = l.font.get_or_insert_with(FontStyle::default);
     font_props(ui, font, "txt");
+    // Pudełko tekstu: wiersz o wysokości `rozmiar × interlinia` (tak liczy go strona wyjściowa).
+    let want_h = (font.size * font.line_height).round().max(1.0);
+    if (l.h - want_h).abs() > 0.5 && ui.small_button(trf("text.fit_h", &[("h", &want_h)])).clicked() { l.h = want_h; }
+    synced
 }
 
 fn font_props(ui: &mut Ui, f: &mut FontStyle, salt: &str) {
     heading(ui, tr("font.title"));
-    ui.horizontal(|ui| { ui.label(tr("font.family")); ui.add(egui::TextEdit::singleline(&mut f.family).desired_width(120.0)); });
+    ui.horizontal(|ui| {
+        ui.label(tr("font.family"));
+        ui.add(egui::TextEdit::singleline(&mut f.family).desired_width(120.0));
+        egui::ComboBox::from_id_salt(format!("fam_{salt}")).selected_text("▾").width(20.0).show_ui(ui, |ui| {
+            for fam in ["Bahnschrift", "Arial", "Helvetica", "Liberation Sans"] { if ui.selectable_label(f.family.eq_ignore_ascii_case(fam), fam).clicked() { f.family = fam.into(); } }
+        });
+    });
     egui::Grid::new(format!("font_{salt}")).num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
         ui.label(tr("font.size")); num_range(ui, &mut f.size, 0.5, 4.0, 500.0);
         ui.label(tr("font.weight")); combo(ui, format!("w_{salt}"), &mut f.weight, &["300", "400", "500", "600", "700", "800", "900"]); ui.end_row();

@@ -270,6 +270,7 @@
   "text.fixed": "stały",
   "text.default": "Tekst domyślny",
   "text.static": "Tekst stały",
+  "text.fit_h": "Dopasuj wysokość do tekstu ({h} px)",
   "text.squash": "Ściskanie tekstu (squash)",
   "font.title": "Czcionka",
   "font.family": "Rodzina",

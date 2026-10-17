@@ -130,6 +130,8 @@ pub struct Values<'a> {
 pub fn strip_html(s: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;
+    // Strona ma `white-space: nowrap`: surowe nowe linie zwijają się do spacji, łamie tylko <br>.
+    let s = s.replace(['\r', '\n'], " ");
     let s = s.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n");
     for c in s.chars() {
         match c { '<' => in_tag = true, '>' => in_tag = false, _ if !in_tag => out.push(c), _ => {} }
@@ -760,5 +762,16 @@ mod squash_tests {
         assert!((squash_factor(0.0, 0.0, 50, true) - 0.5).abs() < 1e-6);
         assert!((squash_factor(0.0, 0.0, 30, true) - 25.0 / 30.0).abs() < 1e-6);
         assert!((squash_factor(0.0, 0.0, 200, true) - 0.5).abs() < 1e-6);
+    }
+}
+
+#[cfg(test)]
+mod strip_tests {
+    use super::strip_html;
+
+    #[test]
+    fn raw_newlines_collapse_but_br_breaks() {
+        assert_eq!(strip_html("a\nb"), "a b");
+        assert_eq!(strip_html("a<br>b"), "a\nb");
     }
 }
