@@ -4,7 +4,7 @@
 //   node tools/e2e-live.js [katalog-BTB-CG] [binarka-edytora]
 const { spawn } = require('child_process'); const fs = require('fs'), os = require('os'), path = require('path');
 const root = path.resolve(process.argv[2] || process.env.BTB_CG_DIR || path.join(os.homedir(), 'Nextcloud/GitHub/BTB-CG-System-alpha'));
-const bin = process.argv[3] || path.join(os.homedir(), '.cache/btb-cgeditor-target/release/btb-cgeditor');
+const bin = process.argv[3] || '/tmp/btb-cgeditor-target/release/btb-cgeditor';
 const { io } = require(path.join(root, 'node_modules/socket.io-client'));
 const PORT = 3500 + Math.floor(Math.random() * 90), url = `http://localhost:${PORT}`;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-live-')); const wait = (ms) => new Promise((r) => setTimeout(r, ms));
