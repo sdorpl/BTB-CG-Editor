@@ -63,6 +63,38 @@ fn dump_compile(args: &[String]) {
     std::fs::write(&args[1], serde_json::to_string(&outs).unwrap()).expect("write");
 }
 
+/// --convert-all in.json outdir [katalog-BTB-CG] : konwertuje wszystkie elementy (kod -> scena) i zapisuje po jednym pliku na element.
+fn convert_all(args: &[String]) {
+    let list = importer::parse_elements(&std::fs::read_to_string(&args[0]).expect("read")).expect("parse");
+    let root = args.get(2).map(std::path::PathBuf::from).or_else(convert::find_btb_root).expect("brak katalogu BTB-CG");
+    let out_dir = std::path::Path::new(&args[1]);
+    std::fs::create_dir_all(out_dir).expect("mkdir");
+    let els: Vec<model::Element> = list.into_iter().map(|l| l.element).collect();
+    let todo: Vec<model::Element> = els.iter().filter(|e| convert::needs_conversion(e)).cloned().collect();
+    let mut res = convert::convert_blocking(&root, &todo).expect("konwersja").into_iter();
+    let mut used = std::collections::HashSet::new();
+    for mut el in els {
+        let mut report = String::new();
+        if convert::needs_conversion(&el) {
+            let c = res.next().expect("wynik");
+            for w in &c.warnings { report += &format!("  ostrzeżenie: {w}\n"); }
+            for n in &c.notes { report += &format!("  uwaga: {n}\n"); }
+            match c.element {
+                Some(conv) => el = conv,
+                None => { println!("BŁĄD  {}: {}", el.name, c.error.unwrap_or_default()); continue; }
+            }
+        }
+        compile::recompile(&mut el);
+        let base: String = el.name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '—' { c } else { '_' }).collect();
+        let mut name = base.clone();
+        let mut n = 2;
+        while !used.insert(name.clone()) { name = format!("{base}_{n}"); n += 1; }
+        let doc = serde_json::json!({ "_exportVersion": 3, "elements": [&el] });
+        std::fs::write(out_dir.join(format!("{name}.json")), serde_json::to_string_pretty(&doc).unwrap()).expect("write");
+        println!("OK    {}{}", el.name, if report.is_empty() { String::new() } else { format!("\n{}", report.trim_end()) });
+    }
+}
+
 fn main() -> eframe::Result<()> {
     let raw: Vec<String> = std::env::args().skip(1).collect();
     if raw.first().map(|s| s.as_str()) == Some("--write-preview") {
@@ -84,6 +116,7 @@ fn main() -> eframe::Result<()> {
         std::fs::write(&raw[2], motion_page::build_html(&el, manual).expect("motion html")).expect("write");
         return Ok(());
     }
+    if raw.first().map(|s| s.as_str()) == Some("--convert-all") { convert_all(&raw[1..]); return Ok(()); }
     if raw.first().map(|s| s.as_str()) == Some("--dump-compile") { dump_compile(&raw[1..]); return Ok(()); }
     i18n::init_from_env();
     let cli = parse_cli();

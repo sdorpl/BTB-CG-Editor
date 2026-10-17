@@ -14,6 +14,15 @@ fn de_stringish<'de, D: Deserializer<'de>>(d: D) -> Result<String, D::Error> {
     })
 }
 
+/// Liczba zapisana jako tekst (`"60"`) w starszych elementach, np. `layout.height` tickerów.
+fn de_opt_f32<'de, D: Deserializer<'de>>(d: D) -> Result<Option<f32>, D::Error> {
+    Ok(match Value::deserialize(d)? {
+        Value::Number(n) => n.as_f64().map(|v| v as f32),
+        Value::String(s) => s.trim().trim_end_matches("px").trim().parse().ok(),
+        _ => None,
+    })
+}
+
 fn is_zero(v: &f32) -> bool { *v == 0.0 }
 fn t() -> bool { true }
 
@@ -461,15 +470,15 @@ impl Scene {
 pub struct Layout {
     #[serde(default = "d_side")]
     pub side: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_opt_f32")]
     pub x: Option<f32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_opt_f32")]
     pub y: Option<f32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_opt_f32")]
     pub width: Option<f32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_opt_f32")]
     pub height: Option<f32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_opt_f32")]
     pub layer: Option<f32>,
     #[serde(default = "d1")]
     pub scale: f32,
