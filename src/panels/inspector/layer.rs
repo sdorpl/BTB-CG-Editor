@@ -1,5 +1,5 @@
 //! Zakładka „Właściwości”: przekształcenie, wygląd zależny od typu i sekcja zaawansowana zaznaczonej warstwy.
-use super::{align, edit_opt, edit_or, heading, hint, InspectorTab};
+use super::{align, edit_opt, edit_or, element, heading, hint};
 use crate::i18n::{tr, trf};
 use crate::model::*;
 use crate::panels::{color_edit, combo, combo_t, num, num_range};
@@ -9,14 +9,10 @@ fn section<R>(ui: &mut Ui, id: &str, title: &str, open: bool, body: impl FnOnce(
     CollapsingHeader::new(egui::RichText::new(title).strong()).id_salt(id).default_open(open).show(ui, |ui| { body(ui); });
 }
 
-pub fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String], tab: &mut InspectorTab) {
-    if selected.len() == 1 && selected[0] == crate::motion_bridge::ELEMENT {
-        hint(ui, tr("inspector.element_hint"));
-        if ui.button(tr("inspector.go_element")).clicked() { *tab = InspectorTab::Element; }
-        return;
-    }
+/// Bez zaznaczonej warstwy (albo przy zaznaczonym „Elemencie”) panel pokazuje właściwości całego elementu w tym samym układzie.
+pub fn layer_tab(ui: &mut Ui, el: &mut Element, selected: &[String]) {
+    if super::element_selected(selected) { element::element_props(ui, el); return }
     let Some(scene) = el.scene.as_mut() else { hint(ui, tr("layer.no_scene")); return };
-    if selected.is_empty() { hint(ui, tr("layer.select")); return }
     if selected.len() > 1 {
         align::align_tools(ui, scene, selected);
         multi_props(ui, scene, selected);

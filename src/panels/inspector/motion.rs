@@ -12,24 +12,10 @@ use serde_json::Value;
 /// Wartość listy „dziedzicz” przy efekcie tekstu (brak własnego efektu warstwy).
 const INHERIT: &str = "(dziedzicz)";
 
-#[derive(Clone, Copy, PartialEq)]
-enum MotionScope { Element, Layer }
-
+/// Ruch zaznaczonej warstwy albo (bez zaznaczonej warstwy) całego elementu: ten sam układ, inne parametry.
 pub fn motion_tab(ui: &mut Ui, el: &mut Element, selected: &mut Vec<String>) {
-    let sid = Id::new("motion_scope");
-    let layer_sel = selected.len() == 1 && selected[0] != ELEMENT;
-    let mut scope = ui.data(|d| d.get_temp::<MotionScope>(sid)).unwrap_or(if layer_sel { MotionScope::Layer } else { MotionScope::Element });
-    ui.horizontal(|ui| {
-        ui.selectable_value(&mut scope, MotionScope::Element, tr("motion.scope.element"));
-        ui.selectable_value(&mut scope, MotionScope::Layer, tr("motion.scope.layer"));
-    });
-    ui.separator();
-    match scope {
-        MotionScope::Element => element_motion(ui, el),
-        MotionScope::Layer => layer_motion(ui, el, selected),
-    }
-    if let Some(id) = layers_overview(ui, el, selected) { *selected = vec![id]; scope = MotionScope::Layer; }
-    ui.data_mut(|d| d.insert_temp(sid, scope));
+    if super::element_selected(selected) { element_motion(ui, el) } else { layer_motion(ui, el, selected) }
+    if let Some(id) = layers_overview(ui, el, selected) { *selected = vec![id]; }
 }
 
 // ── Wspólne wiersze ─────────────────────────────────────────────────────────
@@ -106,19 +92,19 @@ fn optional_motion(ui: &mut Ui, label: &str, salt: &str, m: &mut Option<MotionSp
 
 // ── Element ─────────────────────────────────────────────────────────────────
 
-fn anim_spec(ui: &mut Ui, salt: &str, s: &mut AnimSpec) {
-    spec_grid(ui, salt, &mut s.anim_type, &mut s.direction, &mut s.duration, &mut s.delay, &mut s.ease, &mut s.extra, &[]);
+/// Preset IN/OUT elementu: jak `optional_motion` warstwy (pole wyboru włącza ruch; typ „none” = wyłączony).
+fn element_spec(ui: &mut Ui, label: &str, salt: &str, s: &mut AnimSpec) {
+    let mut on = s.anim_type != "none";
+    if ui.checkbox(&mut on, label).changed() { s.anim_type = if on { "fade".into() } else { "none".into() }; }
+    if s.anim_type != "none" { spec_grid(ui, salt, &mut s.anim_type, &mut s.direction, &mut s.duration, &mut s.delay, &mut s.ease, &mut s.extra, &[]); }
 }
 
 fn element_motion(ui: &mut Ui, el: &mut Element) {
-    hint(ui, tr("anim.intro"));
-    heading(ui, tr("motion.in"));
-    anim_spec(ui, "ein", &mut el.animation.anim_in);
-    heading(ui, tr("motion.out"));
-    anim_spec(ui, "eout", &mut el.animation.out);
-    heading(ui, tr("anim.text"));
-    optional_text(ui, tr("anim.text_in"), "e_t_in", &mut el.animation.text, TEXT_IN, 0.2, &[]);
-    optional_text(ui, tr("anim.text_out"), "e_t_out", &mut el.animation.text_out, TEXT_OUT, 0.0, &[]);
+    heading(ui, tr("motion.title_element"));
+    element_spec(ui, tr("motion.in"), "ein", &mut el.animation.anim_in);
+    element_spec(ui, tr("motion.out"), "eout", &mut el.animation.out);
+    optional_text(ui, tr("motion.text_in"), "e_t_in", &mut el.animation.text, TEXT_IN, 0.2, &[]);
+    optional_text(ui, tr("motion.text_out"), "e_t_out", &mut el.animation.text_out, TEXT_OUT, 0.0, &[]);
     for (key, label) in [("textSync", tr("anim.text_sync")), ("textOutSync", tr("anim.text_out_sync"))] {
         let mut v = el.animation.extra.get(key).and_then(|v| v.as_bool()).unwrap_or(false);
         if ui.checkbox(&mut v, label).changed() { el.animation.extra.insert(key.into(), Value::Bool(v)); }

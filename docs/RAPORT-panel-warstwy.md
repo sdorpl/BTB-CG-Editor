@@ -114,3 +114,15 @@ Wszystkie kroki z sekcji 5 zrobione. `inspector.rs` rozbity na `src/panels/inspe
 Nie zrobiono (świadomie): edycja pozycji Stop w inspektorze (potrzebuje planu odtwarzania), druga ścieżka edycji wartości TITLE ↔ `default_text` (nadal ręczna synchronizacja przy edycji warstwy tekstowej).
 
 Weryfikacja: fmt, clippy, `cargo test --workspace` (94 + testy silnika), WASM parity i testy UI przechodzą; `make e2e` zgłasza `graphic_drop_rotate` (poz. 5,3 px, próg 3 px), **to samo na czystym HEAD przed zmianami**, więc nie jest skutkiem tej zmiany. Wzorce `tests/ui/golden` odświeżone (`tools/ui-shots.py --update`).
+
+### Poprawka układu: element jak warstwa
+
+Zaznaczenie „Element” (albo brak zaznaczonej warstwy) daje te same zakładki i ten sam układ co warstwa, z parametrami elementu:
+
+| Zakładka | Warstwa | Element |
+|---|---|---|
+| Właściwości | Przekształcenie (X Y, W H, obrót, skos, krycie) · Wygląd · Zaawansowane | Przekształcenie (kotwica, X Y lub marginesy, W H ramki, obrót, skala, warstwa Z, krycie) · Zaawansowane (ID, typ) |
+| Ruch | Ruch warstwy: IN, OUT, tekst IN/OUT, klucze | Ruch elementu: IN, OUT (pole wyboru jak u warstwy), tekst IN/OUT, synchronizacja, pętla, klucze |
+| Element | – (dane elementu, niezależne od zaznaczenia): nazwa, wartości TITLE/pola, pola wejściowe |
+
+Zniknął przełącznik Element/Warstwa w „Ruchu” i automatyczne przełączanie na zakładkę Element; zakres wynika z zaznaczenia.

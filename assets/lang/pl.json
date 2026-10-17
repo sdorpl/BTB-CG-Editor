@@ -486,5 +486,7 @@
   "motion.keys.info": "Kanałów kluczy: {channels}, kluczy: {keys}",
   "motion.keys.path": "Ścieżka ruchu: {n} punktów",
   "motion.keys.engine": "Podgląd używa silnika kluczy (btb-motion); klucze działają tylko na stronie wyjściowej z WASM.",
-  "motion.keys.clear": "Usuń klucze"
+  "motion.keys.clear": "Usuń klucze",
+  "motion.title_element": "Ruch elementu",
+  "element.margin_y": "Margines Y"
 }

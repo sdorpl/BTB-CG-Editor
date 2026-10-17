@@ -486,5 +486,7 @@
   "motion.keys.info": "Key channels: {channels}, keys: {keys}",
   "motion.keys.path": "Motion path: {n} points",
   "motion.keys.engine": "Preview uses the key engine (btb-motion); keys work only on the WASM output page.",
-  "motion.keys.clear": "Delete keys"
+  "motion.keys.clear": "Delete keys",
+  "motion.title_element": "Element motion",
+  "element.margin_y": "Margin Y"
 }

@@ -16,6 +16,9 @@ pub enum InspectorTab { #[default] Layer, Element, Anim, Code }
 
 fn heading(ui: &mut Ui, t: &str) { ui.add_space(4.0); ui.label(RichText::new(t).strong().color(Color32::from_gray(200))); }
 
+/// Zaznaczony cały element: wprost („▣ Element”) albo brak zaznaczonych warstw.
+fn element_selected(selected: &[String]) -> bool { selected.is_empty() || (selected.len() == 1 && selected[0] == ELEMENT) }
+
 fn hint(ui: &mut Ui, t: &str) { ui.label(RichText::new(t).small().color(Color32::from_gray(140))); }
 
 /// Edycja pola opcjonalnego bez efektów ubocznych: `None` zostaje `None`, dopóki użytkownik czegoś nie zmieni
@@ -44,7 +47,7 @@ pub fn draw_inspector(ui: &mut Ui, el: &mut Element, selected: &mut Vec<String>,
     });
     ui.separator();
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| match *tab {
-        InspectorTab::Layer => layer::layer_tab(ui, el, selected, tab),
+        InspectorTab::Layer => layer::layer_tab(ui, el, selected),
         InspectorTab::Element => element::element_tab(ui, el),
         InspectorTab::Anim => motion::motion_tab(ui, el, selected),
         InspectorTab::Code => code::code_tab(ui, el),
@@ -53,7 +56,7 @@ pub fn draw_inspector(ui: &mut Ui, el: &mut Element, selected: &mut Vec<String>,
 
 /// Nagłówek widoczny w każdej zakładce: nazwa, widoczność i blokada zaznaczonej warstwy.
 fn header(ui: &mut Ui, el: &mut Element, selected: &[String]) {
-    if selected.len() == 1 && selected[0] == ELEMENT {
+    if element_selected(selected) {
         ui.label(RichText::new(trf("element.whole", &[("name", &el.name)])).strong());
         ui.separator();
         return;

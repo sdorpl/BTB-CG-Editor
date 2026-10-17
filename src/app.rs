@@ -61,8 +61,6 @@ pub struct CgEditorApp {
     last_clicked: Option<String>,
     canvas: CanvasState,
     tab: InspectorTab,
-    /// poprzednio zaznaczony był cały element (przełączenie zakładki następuje tylko przy zmianie zaznaczenia)
-    was_element_sel: bool,
     playback: Playback,
     history: Vec<String>,
     hpos: usize,
@@ -100,7 +98,7 @@ impl CgEditorApp {
         let element = Element::new_typed(tr("element.new_name"), cli.new_type.as_deref().unwrap_or("LOWER_THIRD"));
         let json = snapshot(&element);
         let mut app = Self {
-            element, selected: vec![], last_clicked: None, canvas: CanvasState::default(), tab: InspectorTab::default(), was_element_sel: false,
+            element, selected: vec![], last_clicked: None, canvas: CanvasState::default(), tab: InspectorTab::default(),
             playback: Playback::default(), history: vec![json.clone()], hpos: 0, last_json: json, pending_since: None,
             path: None, dirty: false, status: tr("status.ready").into(), base_url: String::new(), push_rx: None,
             import: ImportDialog { open: false, url: "localhost:3000".into(), status: String::new(), results: vec![], rx: None,
@@ -617,10 +615,6 @@ impl CgEditorApp {
 
         // ── inspector ──
         egui::SidePanel::right("inspector").resizable(true).default_width(300.0).min_width(240.0).show(ctx, |ui| {
-            // wybór „Element” w panelu warstw otwiera zakładkę Element (layout i ramka mają jedno miejsce edycji)
-            let el_sel = self.selected.len() == 1 && self.selected[0] == crate::motion_bridge::ELEMENT;
-            if el_sel && !self.was_element_sel && self.tab == InspectorTab::Layer { self.tab = InspectorTab::Element; }
-            self.was_element_sel = el_sel;
             draw_inspector(ui, &mut self.element, &mut self.selected, &mut self.tab);
         });
 
