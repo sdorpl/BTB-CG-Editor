@@ -31,17 +31,20 @@ pub(super) fn draw_field(painter: &Painter, st: &CanvasState, rect: Rect, geo: &
     field_rect
 }
 
-/// Przerywany obrys ramki elementu; zwraca jej prostokąt na ekranie.
-pub(super) fn draw_frame_outline(painter: &Painter, st: &CanvasState, geo: &Geo) -> Rect {
-    let r = Rect::from_min_size(geo.view.to_screen(Pos2::new(geo.fo.0, geo.fo.1)), Vec2::new(geo.frame.0, geo.frame.1) * st.zoom);
-    painter.add(Shape::dashed_line(&[r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()], Stroke::new(1.0, Color32::from_rgba_unmultiplied(250, 204, 21, 140)), 6.0, 4.0));
-    r
+/// Przerywany obrys ramki elementu (z jego skalą i obrotem); zwraca lewy górny róg na ekranie.
+pub(super) fn draw_frame_outline(painter: &Painter, geo: &Geo) -> Pos2 {
+    let c = geo.frame_corners();
+    painter.add(Shape::dashed_line(&[c[0], c[1], c[2], c[3], c[0]], Stroke::new(1.0, Color32::from_rgba_unmultiplied(250, 204, 21, 140)), 6.0, 4.0));
+    c[0]
 }
 
 pub(super) fn draw_guides(painter: &Painter, st: &CanvasState, rect: Rect, geo: &Geo) {
     let col = Color32::from_rgb(255, 0, 170);
-    for gx in &st.guides_x { painter.vline(geo.view.to_screen(Pos2::new(geo.fo.0 + gx, 0.0)).x, rect.y_range(), Stroke::new(1.0, col)); }
-    for gy in &st.guides_y { painter.hline(rect.x_range(), geo.view.to_screen(Pos2::new(0.0, geo.fo.1 + gy)).y, Stroke::new(1.0, col)); }
+    let line = |a: Pos2, b: Pos2| painter.line_segment([geo.view_aff.apply(a), geo.view_aff.apply(b)], Stroke::new(1.0, col));
+    // długie odcinki w układzie ramki wypełniają widok także przy skali i obrocie elementu
+    let far = (rect.width() + rect.height()) / st.zoom.max(0.01) * 4.0 / geo.scale.max(0.01);
+    for gx in &st.guides_x { line(Pos2::new(*gx, -far), Pos2::new(*gx, far)); }
+    for gy in &st.guides_y { line(Pos2::new(-far, *gy), Pos2::new(far, *gy)); }
 }
 
 /// Obrysy zaznaczonych warstw oraz uchwyty skalowania, uchwyt obrotu i etykieta rozmiaru dla pojedynczej warstwy.
@@ -104,7 +107,7 @@ pub(super) fn draw_marquee(painter: &Painter, st: &CanvasState) {
     }
 }
 
-pub(super) fn draw_labels(painter: &Painter, field_rect: Rect, frame_screen: Rect, frame: (f32, f32)) {
+pub(super) fn draw_labels(painter: &Painter, field_rect: Rect, frame_top_left: Pos2, frame: (f32, f32)) {
     painter.text(field_rect.left_top() + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, "1920 × 1080", egui::FontId::monospace(10.0), Color32::from_gray(110));
-    painter.text(frame_screen.left_top() + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, crate::i18n::trf("canvas.frame_label", &[("w", &frame.0.round()), ("h", &frame.1.round())]), egui::FontId::monospace(10.0), YELLOW);
+    painter.text(frame_top_left + Vec2::new(2.0, -3.0), egui::Align2::LEFT_BOTTOM, crate::i18n::trf("canvas.frame_label", &[("w", &frame.0.round()), ("h", &frame.1.round())]), egui::FontId::monospace(10.0), YELLOW);
 }

@@ -9,7 +9,7 @@ pub(super) const HANDLES: [(i8, i8); 8] = [(-1, -1), (0, -1), (1, -1), (1, 0), (
 /// Macierz warstwy -> pole bez animacji (transformy domyślne).
 pub(super) fn static_aff(l: &Layer, frame: (f32, f32)) -> Aff {
     let d = Transform::default();
-    render::layer_to_field(l, (0.0, 0.0), frame, &d, &d)
+    render::layer_to_field(l, &Aff::ID, frame, &d, &d)
 }
 
 /// Prostokąt otaczający warstwę po obrocie we współrzędnych ramki: (min_x, min_y, max_x, max_y).
@@ -30,10 +30,13 @@ pub(super) enum PathHit { Key(usize), Handle(usize, bool) }
 /// Stan widoku i zaznaczenia z początku klatki, potrzebny do przeliczeń ekran <-> ramka i do trafiania.
 pub(super) struct Geo {
     pub view: View,
-    /// pole -> ekran z przesunięciem o początek ramki elementu (współrzędne ramki -> ekran)
+    /// ramka elementu -> pole (położenie, skala i obrót z layoutu)
+    pub frame_aff: Aff,
+    /// współrzędne ramki -> ekran
     pub view_aff: Aff,
-    pub fo: (f32, f32),
     pub frame: (f32, f32),
+    /// skala elementu z layoutu
+    pub scale: f32,
     /// jedyna zaznaczona warstwa (uchwyty i ścieżka działają tylko dla pojedynczego zaznaczenia)
     pub single: Option<Layer>,
     pub path_sel: Option<usize>,
@@ -43,8 +46,13 @@ pub(super) struct Geo {
 
 impl Geo {
     pub fn to_frame(&self, p: Pos2) -> Pos2 {
-        let f = self.view.to_field(p);
-        Pos2::new(f.x - self.fo.0, f.y - self.fo.1)
+        self.frame_aff.inverse().apply(self.view.to_field(p))
+    }
+
+    /// Narożniki ramki elementu na ekranie: lewy górny, prawy górny, prawy dolny, lewy dolny.
+    pub fn frame_corners(&self) -> [Pos2; 4] {
+        let (w, h) = self.frame;
+        [Pos2::ZERO, Pos2::new(w, 0.0), Pos2::new(w, h), Pos2::new(0.0, h)].map(|q| self.view_aff.apply(q))
     }
 
     pub fn layer_to_screen(&self, l: &Layer) -> Aff { self.view_aff.mul(static_aff(l, self.frame)) }
@@ -87,7 +95,7 @@ impl Geo {
     /// Punkt (x, y) ścieżki ruchu to przesunięcie od środka warstwy.
     pub fn path_screen(&self, l: &Layer, x: f32, y: f32) -> Pos2 {
         let (cx, cy) = (l.x + l.w / 2.0, l.y + l.h / 2.0);
-        self.view.to_screen(Pos2::new(self.fo.0 + cx + x, self.fo.1 + cy + y))
+        self.view_aff.apply(Pos2::new(cx + x, cy + y))
     }
 
     pub fn pick_path(&self, p: Pos2) -> Option<PathHit> {

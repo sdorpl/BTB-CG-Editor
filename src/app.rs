@@ -675,6 +675,8 @@ impl CgEditorApp {
             let scene = self.element.scene.as_mut().unwrap();
             let out = canvas::draw_canvas(ui, &mut self.canvas, scene, &mut self.selected, DrawInputs {
                 frame_origin: fo,
+                frame_scale: self.element.layout.scale,
+                frame_rotation: self.element.layout.rotation,
                 sp: SceneParamsBuilder { elem_tr, fx: &fx, values, time: ui.input(|i| i.time), playing: self.playback.active(), badge_squash: self.element.elem_type == "BADGE" },
             });
             edited = out.edited_text;

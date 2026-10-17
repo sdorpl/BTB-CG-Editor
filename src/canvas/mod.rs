@@ -74,6 +74,9 @@ impl CanvasState {
 
 pub struct DrawInputs<'a> {
     pub frame_origin: (f32, f32),
+    /// skala i obrót elementu z layoutu (względem lewego górnego rogu ramki)
+    pub frame_scale: f32,
+    pub frame_rotation: f32,
     pub sp: SceneParamsBuilder<'a>,
 }
 
@@ -119,7 +122,8 @@ pub fn draw_canvas(
     let space = view::navigate(ui, st, rect, &response);
     let view = View { origin: rect.min + st.pan, zoom: st.zoom };
     let single = if selected.len() == 1 { scene.layers.iter().find(|l| l.id == selected[0]).cloned() } else { None };
-    let geo = Geo { view, view_aff: view.aff().mul(render::Aff::translate(fo.0, fo.1)), fo, frame, single, path_sel: st.path_sel, editing: st.editing.is_some(), playing: inputs.sp.playing };
+    let frame_aff = render::frame_aff(fo, inputs.frame_scale, inputs.frame_rotation);
+    let geo = Geo { view, frame_aff, view_aff: view.aff().mul(frame_aff), scale: inputs.frame_scale, frame, single, path_sel: st.path_sel, editing: st.editing.is_some(), playing: inputs.sp.playing };
 
     if st.editing.is_none() && !inputs.sp.playing {
         tools::interact(ui, st, &geo, scene, selected, &response, space, &mut out);
@@ -127,10 +131,10 @@ pub fn draw_canvas(
 
     // ── rysowanie ──
     let field_rect = overlay::draw_field(&painter, st, rect, &geo);
-    let frame_screen = overlay::draw_frame_outline(&painter, st, &geo);
+    let frame_tl = overlay::draw_frame_outline(&painter, &geo);
     let sp = SceneParams {
         scene,
-        frame_origin: fo,
+        frame_aff,
         elem_tr: inputs.sp.elem_tr,
         fx: inputs.sp.fx,
         values: render::Values { title: inputs.sp.values.title, fields: inputs.sp.values.fields, extra: inputs.sp.values.extra, base_url: inputs.sp.values.base_url },
@@ -146,7 +150,7 @@ pub fn draw_canvas(
     overlay::draw_marquee(&painter, st);
     text::edit_overlay(ui, st, scene, &geo, rect, &mut out);
     if !inputs.sp.playing && st.editing.is_none() { text::add_bar(ui, st, scene, selected, rect, &mut out); }
-    overlay::draw_labels(&painter, field_rect, frame_screen, frame);
+    overlay::draw_labels(&painter, field_rect, frame_tl, frame);
     out
 }
 
@@ -202,7 +206,7 @@ mod tests {
             let _ = ctx.run(raw, |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let values = render::Values { title: &title, fields: &fields, extra: &extra, base_url: "" };
-                    draw_canvas(ui, st, scene, selected, DrawInputs { frame_origin: fo, sp: SceneParamsBuilder { elem_tr: Transform::default(), fx: &fx, values, time: 0.0, playing: false, badge_squash: false } });
+                    draw_canvas(ui, st, scene, selected, DrawInputs { frame_origin: fo, frame_scale: el.layout.scale, frame_rotation: el.layout.rotation, sp: SceneParamsBuilder { elem_tr: Transform::default(), fx: &fx, values, time: 0.0, playing: false, badge_squash: false } });
                 });
             });
         }
@@ -368,6 +372,23 @@ mod tests {
         let l = c.layer();
         let (nx0, _, _, _) = hit::frame_bbox(&l, (c.el.scene.as_ref().unwrap().frame.w, c.el.scene.as_ref().unwrap().frame.h));
         assert!(nx0.abs() < 1.0, "lewa krawędź obróconego pudełka: {nx0}");
+    }
+
+    #[test]
+    fn layout_scale_and_rotation_apply_to_hit_testing_and_moves() {
+        let mut c = C::plain();
+        c.el.layout.scale = 2.0;
+        c.frame(vec![]);
+        let l0 = c.layer();
+        let fo = c.fo();
+        let to_screen = |c: &C, x: f32, y: f32| c.st.last_rect.min + c.st.pan + Vec2::new(fo.0 + 2.0 * x, fo.1 + 2.0 * y) * c.st.zoom;
+        let from = to_screen(&c, l0.x + l0.w / 2.0, l0.y + l0.h / 2.0);
+        let d = Vec2::new(80.0, 40.0);
+        c.drag(from, from + d);
+        let l = c.layer();
+        // ekran -> pole dzieli przez zoom, pole -> ramka przez skalę 2
+        assert!((l.x - l0.x - (d.x / c.st.zoom / 2.0).round()).abs() <= 1.0, "x: {} -> {}", l0.x, l.x);
+        assert!((l.y - l0.y - (d.y / c.st.zoom / 2.0).round()).abs() <= 1.0, "y: {} -> {}", l0.y, l.y);
     }
 
     #[test]

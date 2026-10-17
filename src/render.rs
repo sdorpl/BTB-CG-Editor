@@ -58,11 +58,18 @@ pub fn motion_aff(t: &Transform, w: f32, h: f32) -> Aff {
 }
 
 /// Layer-local (0..w, 0..h) → field coordinates.
-pub fn layer_to_field(l: &Layer, frame_origin: (f32, f32), frame: (f32, f32), elem: &Transform, tr: &Transform) -> Aff {
+/// Ramka elementu -> pole: przesunięcie do `origin`, potem skala i obrót względem lewego górnego rogu ramki
+/// (`transform: scale(s) rotate(r)` z `transform-origin: top left` na stronie wyjściowej).
+pub fn frame_aff(origin: (f32, f32), scale: f32, rotation: f32) -> Aff {
+    Aff::translate(origin.0, origin.1).mul(Aff::scale(scale, scale)).mul(Aff::rotate(rotation))
+}
+
+/// Layer-local (0..w, 0..h) → field coordinates. `frame_aff` zawiera położenie i skalę/obrót elementu na wizji.
+pub fn layer_to_field(l: &Layer, frame_aff: &Aff, frame: (f32, f32), elem: &Transform, tr: &Transform) -> Aff {
     let c = (l.w / 2.0, l.h / 2.0);
     let inner = Aff::translate(c.0, c.1).mul(Aff::skew_x(l.skew)).mul(Aff::rotate(l.rotation)).mul(Aff::translate(-c.0, -c.1));
     let local = Aff::translate(l.x, l.y).mul(motion_aff(tr, l.w, l.h)).mul(inner);
-    Aff::translate(frame_origin.0, frame_origin.1).mul(motion_aff(elem, frame.0, frame.1)).mul(local)
+    frame_aff.mul(motion_aff(elem, frame.0, frame.1)).mul(local)
 }
 
 #[derive(Clone, Copy)]
@@ -205,7 +212,8 @@ pub struct LayerFx { pub tr: Option<Transform>, pub text: Option<TextFx> }
 
 pub struct SceneParams<'a> {
     pub scene: &'a Scene,
-    pub frame_origin: (f32, f32),
+    /// ramka -> pole (położenie, skala i obrót elementu z layoutu), patrz `frame_aff`
+    pub frame_aff: Aff,
     pub elem_tr: Transform,
     pub fx: &'a HashMap<String, LayerFx>,
     pub values: Values<'a>,
@@ -488,7 +496,7 @@ pub fn draw_scene(painter: &Painter, ctx: &Context, view: &View, sp: &SceneParam
     for l in sp.scene.layers.iter().filter(|l| l.visible) {
         let fx = sp.fx.get(&l.id);
         let tr = fx.and_then(|f| f.tr.as_ref()).unwrap_or(&default_tr);
-        let field_m = layer_to_field(l, sp.frame_origin, frame, &sp.elem_tr, tr);
+        let field_m = layer_to_field(l, &sp.frame_aff, frame, &sp.elem_tr, tr);
         let m = view.aff().mul(field_m);
         let opacity = l.opacity * tr.opacity * sp.elem_tr.opacity;
         if opacity <= 0.002 { continue; }
@@ -502,7 +510,7 @@ pub fn draw_scene(painter: &Painter, ctx: &Context, view: &View, sp: &SceneParam
         };
         clip = apply_clip(clip, tr.clip, l.w, l.h, &m);
         if sp.elem_tr.clip != [0.0, 0.0, 1.0, 1.0] {
-            let eb = view.aff().mul(Aff::translate(sp.frame_origin.0, sp.frame_origin.1));
+            let eb = view.aff().mul(sp.frame_aff);
             clip = apply_clip(clip, sp.elem_tr.clip, frame.0, frame.1, &eb);
         }
         let p = painter.with_clip_rect(clip);
