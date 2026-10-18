@@ -411,6 +411,21 @@
         } catch (e) { return false; }
     }
 
+    // Właściwości tekstu, które KOD elementu faktycznie czyta z style.typography (zmienne szablonu). Elementy ze sceną i inne bez tych
+    // zmiennych nie konsumują typografii — formatowanie z Edytora Tekstu (kolor, krój, rozmiar, grubość) musi zostać w HTML pola,
+    // bo „promowanie” do typografii kasowało je z tytułu, a nic go potem nie stosowało na wizji.
+    const TYPO_VARS = {
+        TITLE: { fontFamily: ['FONT_FAMILY', 'TITLE_FONT'], fontSize: ['TITLE_SIZE'], fontWeight: ['TITLE_WEIGHT'], color: ['TITLE_COLOR'] },
+        SUBTITLE: { fontFamily: ['FONT_FAMILY', 'TITLE_FONT'], fontSize: ['SUBTITLE_SIZE'], fontWeight: [], color: ['SUBTITLE_COLOR'] },
+    };
+    function _promotableProps(el, field) {
+        const map = TYPO_VARS[field] || TYPO_VARS.TITLE;
+        const code = (el.html_template || '') + '\n' + (el.css_template || '') + '\n' + (el.js_template || '');
+        const used = new Set();
+        for (const m of code.matchAll(/\{\{\{?\s*(?:#if\s+|#unless\s+)?([A-Z_][A-Z0-9_]*)/g)) used.add(m[1]);
+        return TEXT_STYLE_PROPS.filter(p => (map[p] || []).some(v => used.has(v)));
+    }
+
     function _applyExtractedTypography(el, field, extracted) {
         if (!extracted || !Object.keys(extracted).length) return;
         const key = field === 'SUBTITLE' ? 'subtitleTypography' : 'typography';
@@ -453,9 +468,12 @@
             // Formatowanie jednolite na całym tekście (np. operator zmienił font/rozmiar/kolor z
             // zaznaczonym całym tytułem) trafia do style.typography/subtitleTypography — tak, żeby
             // zakładka Typografia nadal nad nim panowała; usuwamy wtedy odpowiadający inline-style.
-            const promoted = _promoteUniformInlineStyle(html, TEXT_STYLE_PROPS);
-            _applyExtractedTypography(el, field, promoted.extracted);
-            html = promoted.html;
+            const promotable = _promotableProps(el, field);
+            if (promotable.length) {
+                const promoted = _promoteUniformInlineStyle(html, promotable);
+                _applyExtractedTypography(el, field, promoted.extracted);
+                html = promoted.html;
+            }
         }
         const text = htmlToText(html);
         if (field === 'TITLE') {

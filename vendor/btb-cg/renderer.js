@@ -150,6 +150,69 @@
         }
     }
 
+    // ── Fonty elementu (D10, M3) ───────────────────────────────────────────────────────────────────────────────
+    const FONT_SAMPLE = 'Zażółć gęślą jaźń ĄĆĘŁŃÓŚŹŻ 0123456789';
+    const GENERIC_FONTS = /^(sans-serif|serif|monospace|cursive|fantasy|system-ui|inherit|initial|unset)$/i;
+    const cleanFamily = (f) => String(f || '').split(',')[0].replace(/['"]/g, '').trim();
+    /** Pary krój/waga/kursywa używane przez element: warstwy sceny, formatowanie inline w HTML pól, typografia, czcionka globalna. */
+    function collectFontSpecs(graphic, settings) {
+        const out = new Map();
+        const add = (family, weight, italic) => {
+            family = cleanFamily(family);
+            if (!family || GENERIC_FONTS.test(family) || /\{\{/.test(family)) return;
+            let w = String(weight == null || weight === '' ? 400 : weight).toLowerCase();
+            w = w === 'bold' ? '700' : w === 'normal' ? '400' : (parseInt(w, 10) ? String(parseInt(w, 10)) : '400');
+            out.set(`${italic ? 'italic ' : ''}${w} 40px "${family}"`, true);
+        };
+        const g = graphic || {};
+        const baseFamilies = [];
+        const baseWeights = new Set(['400']);
+        const layers = g.scene && !g.scene.detached ? (g.scene.layers || []) : [];
+        layers.filter(l => l.visible !== false && l.font).forEach(l => {
+            const f = l.font;
+            baseFamilies.push(f.family);
+            baseWeights.add(String(f.weight || 400));
+            add(f.family, f.weight, f.italic);
+        });
+        const typo = g.style && g.style.typography || {}, sub = g.style && g.style.subtitleTypography || {};
+        [typo, sub].forEach(t => { if (t.fontFamily) { baseFamilies.push(t.fontFamily); add(t.fontFamily, t.fontWeight, false); } });
+        const global = settings && settings.globalFontFamily && (settings.globalFontGraphics || []).includes(g.id) ? settings.globalFontFamily : null;
+        if (global) { baseFamilies.push(global); add(global, typo.fontWeight, false); }
+        [g.fontFamily, g.fields && g.fields.FONT_FAMILY, g.fields && g.fields.fontFamily].forEach(f => { if (f) { baseFamilies.push(f); add(f, typo.fontWeight, false); } });
+        // formatowanie inline z Edytora Tekstu (kroje, grubości, pogrubienie, kursywa) w tytule i polach
+        const htmls = [g.titleHtml, g.fields && g.fields.TITLE, g.fields && g.fields.SUBTITLE, ...Object.values(g.fields || {})].filter(v => typeof v === 'string' && v.includes('<'));
+        htmls.forEach(h => {
+            const fams = [...h.matchAll(/font-family\s*:\s*([^;"']+(?:'[^']*')?[^;"]*)/gi)].map(m => cleanFamily(m[1]));
+            const ws = [...h.matchAll(/font-weight\s*:\s*(\d+|bold|normal)/gi)].map(m => m[1]);
+            const bold = /<(strong|b)\b/i.test(h), ital = /<(em|i)\b/i.test(h) || /font-style\s*:\s*italic/i.test(h);
+            const famSet = new Set([...fams, ...baseFamilies].filter(Boolean));
+            const wSet = new Set([...baseWeights, ...ws, ...(bold ? ['700'] : [])]);
+            famSet.forEach(f => wSet.forEach(w => { add(f, w, false); if (ital) add(f, w, true); }));
+        });
+        return [...out.keys()];
+    }
+    /** Ładuje kroje elementu. Zwraca Promise<{ ok, missing[] }>; nigdy nie odrzuca. Limit czasu domyślnie 2,5 s. */
+    function ensureFonts(specs, timeoutMs) {
+        if (!document.fonts || !specs.length) return Promise.resolve({ ok: true, missing: [] });
+        const declared = new Set([...document.fonts].map(f => f.family.replace(/['"]/g, '')));
+        const todo = specs.filter(s => declared.has(/"([^"]+)"$/.exec(s)[1]));
+        if (!todo.length) return Promise.resolve({ ok: true, missing: [] });
+        const loading = Promise.all(todo.map(s => document.fonts.load(s, FONT_SAMPLE).catch(() => []))).then(() => true);
+        const timer = new Promise(res => setTimeout(() => res(false), timeoutMs || 2500));
+        return Promise.race([loading, timer]).then((done) => {
+            const missing = todo.filter(s => {
+                const fam = /"([^"]+)"$/.exec(s)[1];
+                return ![...document.fonts].some(f => f.family.replace(/['"]/g, '') === fam && f.status === 'loaded');
+            });
+            if (!done || missing.length) console.warn('[fonts] element nie czeka dłużej na kroje:', missing.length ? missing : todo);
+            return { ok: done && !missing.length, missing };
+        });
+    }
+    function ensureFontsFor(graphic, settings) {
+        try { return ensureFonts(collectFontSpecs(graphic, settings)); } catch (e) { console.error('[fonts]', e); return Promise.resolve({ ok: false, missing: [] }); }
+    }
+    window.CGFonts = { collectFontSpecs, ensureFonts, ensureFontsFor };
+
     // ── Runtime WASM btb-motion (M2.3, opcja B) ────────────────────────────────────────────────────────
     // Elementy z artefaktem `element.motion` (klucze, ścieżka ruchu — funkcje spoza CGMotion) grają silnikiem btb-motion
     // z edytora; pozostałe jak dotąd przez CGMotion. `settings.motionEngine === 'cgmotion'` wyłącza WASM (domyślnie 'auto').
@@ -658,8 +721,10 @@
                 // bez ukrycia pokazywał się na klatkę w pełnej postaci i dopiero potem znikał (migotanie).
                 rootEl.style.visibility = 'hidden';
 
+                // D10 (M3): font dodany do projektu ładuje się RAZEM z belką — animacja IN i pomiary startują dopiero po załadowaniu
+                // wszystkich krojów elementu (z limitem czasu; przy braku: ostrzeżenie + fallback), nie po „doczytaniu się” fontu.
                 // Allow DOM repaints before executing GSAP show animations logic
-                setTimeout(() => {
+                ensureFontsFor(data, settings).then(() => setTimeout(() => {
                     if (rootEl) {
                         rootEl.classList.add('active');
                         // Legacy support: also add .active to the first child (often .lt-container)
@@ -703,7 +768,7 @@
                     } else {
                         legacyShow();
                     }
-                }, 30);
+                }, 30));
             } catch (e) {
                 console.error("[CGMotion] Template JS error", e);
             }
@@ -1176,6 +1241,9 @@
                     const pr = legacyPreviewShow();
                     if (pr) instantSettlePromises.push(pr);
                 }
+
+                // D10: podgląd czeka na kroje elementu (pomiary i zrzuty po załadowaniu fontów)
+                instantSettlePromises.push(ensureFontsFor(graphic, settings).then(() => { if (rootEl) applyGlobalSquashing(rootEl); }));
 
                 // Apply global text squashing to preview instances
                 scheduleSquashing(rootEl);
