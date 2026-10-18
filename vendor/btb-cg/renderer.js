@@ -155,6 +155,7 @@
             const p = await window.BtbMotion.create(mod, { director: m.director, tickers: m.tickers || [], squash: m.squash, fit: null, manual: instant, embedded: { root: rootEl, fx } });
             if (!rootEl.isConnected) { p.destroy(); return true; }
             rootEl.__btb = p;
+            if (opts && opts.onEnd) p.on('end', opts.onEnd);
             rootEl.__slt_hide = () => new Promise((res) => { if (!p.visible) return res(); p.on('end', () => res()); p.off(); });
             p.take();
             if (instant) {
@@ -366,6 +367,15 @@
         socket.on('stateUpdated', (state) => {
             handleStateUpdate(state);
         });
+        socket.on('continueGraphic', (id) => continueGraphic(id));
+    }
+
+    /** Local Stop: „Dalej” dla elementu na wizji grającego silnikiem WASM (z ostatniego Stopu zaczyna się OUT). */
+    function continueGraphic(id) {
+        const meta = activeGraphics[id];
+        const root = meta && document.getElementById(meta.instanceId);
+        if (root && root.__btb && !meta.isHiding) { try { return root.__btb['continue'](); } catch (e) { console.error('[btb-motion] continue', e); } }
+        return false;
     }
 
     function handleStateUpdate(state) {
@@ -642,7 +652,16 @@
                     };
                     if (wantsWasmMotion(data, settings)) {
                         // element zostaje ukryty (visibility) do startu pierwszej klatki silnika WASM
-                        startWasmMotion(rootEl, data).then((ok) => {
+                        startWasmMotion(rootEl, data, {
+                            // OUT zagrany przez „Dalej” z ostatniego Stopu (nie przez zdjęcie ze stanu): zdejmij element i zgłoś to serwerowi
+                            onEnd: () => {
+                                const meta = activeGraphics[data.id];
+                                if (!meta || meta.isHiding || !meta.el.contains(rootEl)) return;
+                                meta.isHiding = true;
+                                removeElement(data.id, meta);
+                                if (socket) socket.emit('graphicEnded', data.id);
+                            }
+                        }).then((ok) => {
                             if (!ok) { legacyShow(); return; }
                             rootEl.style.visibility = '';
                             scheduleSquashing(rootEl);
