@@ -517,19 +517,8 @@ impl CgEditorApp {
 }
 
 pub(crate) fn setup_fonts(ctx: &egui::Context) {
-    let mut fonts = egui::FontDefinitions::default();
-    fonts.font_data.insert("Bahnschrift".into(), egui::FontData::from_static(include_bytes!("../assets/BAHNSCHRIFT.TTF")));
-    for (name, data) in [("LiberationRegular", &include_bytes!("../assets/LiberationSans-Regular.ttf")[..]), ("LiberationBold", &include_bytes!("../assets/LiberationSans-Bold.ttf")[..])] {
-        fonts.font_data.insert(name.into(), egui::FontData::from_static(data));
-        fonts.families.insert(egui::FontFamily::Name(name.into()), vec![name.to_string(), "Bahnschrift".to_string()]);
-    }
-    let mut fam = vec!["Bahnschrift".to_string()];
-    fam.extend(fonts.families.get(&egui::FontFamily::Proportional).cloned().unwrap_or_default());
-    fonts.families.insert(egui::FontFamily::Name("Bahnschrift".into()), fam);
-    // Bahnschrift as a last-resort fallback for UI symbols (arrows, geometric shapes) missing in egui's defaults.
-    if let Some(f) = fonts.families.get_mut(&egui::FontFamily::Proportional) { f.push("Bahnschrift".into()); }
-    crate::fonts::registry().register(&mut fonts);
-    ctx.set_fonts(fonts);
+    crate::fonts::warm_up_system_fonts();
+    ctx.set_fonts(crate::fonts::build_definitions());
 }
 
 impl eframe::App for CgEditorApp {

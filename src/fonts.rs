@@ -38,10 +38,29 @@ struct RawFamily {
     metrics: Option<RawMetrics>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct RawAliasFace {
+    weight: u16,
+    #[serde(default)]
+    local: Vec<String>,
+}
+
+/// Alias fontu systemowego (D9): nazwa systemowa → `local()` z zapasem z pakietu (`use` = id rodziny zamiennika).
+#[derive(Debug, Clone, Deserialize)]
+struct RawAlias {
+    family: String,
+    #[serde(rename = "use")]
+    use_id: String,
+    #[serde(default)]
+    faces: Vec<RawAliasFace>,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawManifest {
     #[serde(default)]
     families: Vec<RawFamily>,
+    #[serde(default)]
+    aliases: Vec<RawAlias>,
 }
 
 /// Jeden krój (waga + kursywa) z plikami TTF (kolejność: latin, latin-ext, all).
@@ -72,6 +91,7 @@ pub struct Registry {
     pub dir: Option<PathBuf>,
     pub families: Vec<Family>,
     by_name: HashMap<String, usize>,
+    aliases: Vec<RawAlias>,
 }
 
 /// Wynik wyboru kroju dla (rodzina, waga, kursywa).
@@ -133,6 +153,7 @@ impl Registry {
         let Some(dir) = dir else { return reg };
         let Ok(text) = std::fs::read_to_string(dir.join("manifest.json")) else { return reg };
         let Ok(raw) = serde_json::from_str::<RawManifest>(&text) else { return reg };
+        reg.aliases = raw.aliases.into_iter().take(64).collect();
         for f in raw.families.into_iter().take(256) {
             let ascent = f.metrics.as_ref().filter(|m| m.units_per_em > 0.0 && m.ascender > 0.0).map(|m| m.ascender / m.units_per_em).unwrap_or(0.95);
             let faces: Vec<Face> = f.faces.iter().take(64).map(|fc| {
@@ -210,6 +231,21 @@ impl Registry {
         v
     }
 
+    fn alias_css(&self, al: &RawAlias, weight: u16) -> String {
+        use base64::Engine;
+        let (Some(dir), Some(fam)) = (&self.dir, self.families.iter().find(|f| f.id == al.use_id)) else { return String::new() };
+        let Some(af) = al.faces.iter().min_by_key(|f| ((f.weight as i32 - weight as i32).abs(), -(f.weight as i32))) else { return String::new() };
+        let Some(face) = self.pick_face(fam, af.weight, false) else { return String::new() };
+        let locals: Vec<String> = af.local.iter().map(|n| format!("local('{}')", n.replace('\'', ""))).collect();
+        let mut css = String::new();
+        for (_, rel) in &face.files {
+            let Ok(bytes) = std::fs::read(dir.join(rel)) else { continue };
+            css += &format!("@font-face {{ font-family: '{}'; font-style: normal; font-weight: {}; font-display: block; src: {}, url(data:font/ttf;base64,{}) format('truetype'); }}\n",
+                al.family.replace('\'', ""), af.weight, locals.join(", "), base64::engine::general_purpose::STANDARD.encode(&bytes));
+        }
+        css
+    }
+
     /// `@font-face` (dane base64) dla krojów wskazanych par (rodzina, waga, kursywa): osadzane w stronach wyjściowych/podglądu (D10 —
     /// font elementu jest częścią jego strony). Rodziny nieznane i systemowe (Arial…) pomijamy; Bahnschrift ma osobne osadzanie w wywołującym.
     pub fn embed_css(&self, used: &[(String, u16, bool)]) -> String {
@@ -218,6 +254,15 @@ impl Registry {
         let mut done: Vec<String> = vec![];
         let mut css = String::new();
         for (family, weight, italic) in used {
+            // alias fontu systemowego (Arial, Segoe UI…): local() + zamiennik z pakietu osadzony w stronie — działa na maszynach bez tego fontu
+            if let Some(al) = self.aliases.iter().find(|a| norm(&a.family) == norm(family)) {
+                let key = format!("alias:{}:{}", norm(&al.family), weight);
+                if !done.contains(&key) {
+                    done.push(key);
+                    css += &self.alias_css(al, *weight);
+                }
+                continue;
+            }
             let Some(fam) = self.find(family).filter(|f| f.source == "pack") else { continue };
             let Some(face) = self.pick_face(fam, *weight, *italic) else { continue };
             if done.contains(&face.egui_name) { continue; }
@@ -252,6 +297,127 @@ pub fn used_by(scene: &crate::model::Scene) -> Vec<(String, u16, bool)> {
 /// CSS `@font-face` krojów z pakietu używanych przez element — osadzany w stronie wyjściowej/podglądu (D10: font jest częścią strony belki).
 pub fn page_css(el: &crate::model::Element) -> String {
     match &el.scene { Some(s) => registry().embed_css(&used_by(s)), None => String::new() }
+}
+
+// ── Fonty systemowe (D9) ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Baza fontów systemu (`fontdb`), ładowana w tle (skanowanie bywa wolne); do czasu załadowania lista jest pusta.
+struct SystemDb {
+    db: fontdb::Database,
+    families: Vec<String>,
+}
+
+static SYS: OnceLock<SystemDb> = OnceLock::new();
+
+fn load_system_db() -> SystemDb {
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+    let mut families: Vec<String> = db.faces().flat_map(|f| f.families.iter().map(|(n, _)| n.clone())).collect();
+    families.sort_by_key(|s| s.to_lowercase());
+    families.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    families.truncate(4000);
+    SystemDb { db, families }
+}
+
+/// Rozpoczyna skanowanie fontów systemowych w tle (wołane przy starcie aplikacji).
+pub fn warm_up_system_fonts() {
+    std::thread::spawn(|| { let _ = SYS.get_or_init(load_system_db); });
+}
+
+/// Rodziny zainstalowane w systemie (puste, dopóki skan w tle się nie skończy).
+pub fn system_families() -> Vec<String> { SYS.get().map(|s| s.families.clone()).unwrap_or_default() }
+
+#[derive(Default)]
+struct Extra {
+    /// klucz rodziny egui → (bajty pliku, indeks w kolekcji).
+    fonts: std::collections::BTreeMap<String, (std::sync::Arc<Vec<u8>>, u32)>,
+    /// hhea.ascender / unitsPerEm wczytanych fontów systemowych.
+    ascent: std::collections::HashMap<String, f32>,
+    /// rodziny, których nie ma w systemie / nie dało się wczytać (nie pytamy co klatkę).
+    missing: std::collections::HashSet<String>,
+}
+
+fn extra() -> &'static std::sync::Mutex<Extra> {
+    static E: OnceLock<std::sync::Mutex<Extra>> = OnceLock::new();
+    E.get_or_init(|| std::sync::Mutex::new(Extra::default()))
+}
+
+/// Rodziny obsługiwane bez systemu: Bahnschrift, Liberation i ich aliasy (Arial, Helvetica…).
+pub fn is_builtin_family(family: &str) -> bool {
+    matches!(norm(family).as_str(), "bahnschrift" | "arial" | "helvetica" | "liberation sans" | "sans-serif" | "arial narrow" | "")
+}
+
+fn bucket(weight: u16) -> u16 { ((weight as u32 + 50) / 100 * 100).clamp(100, 900) as u16 }
+
+/// Definicje egui: Bahnschrift + Liberation (wkompilowane) + pakiet + dociągnięte fonty systemowe.
+pub fn build_definitions() -> egui::FontDefinitions {
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert("Bahnschrift".into(), egui::FontData::from_static(include_bytes!("../assets/BAHNSCHRIFT.TTF")));
+    for (name, data) in [("LiberationRegular", &include_bytes!("../assets/LiberationSans-Regular.ttf")[..]), ("LiberationBold", &include_bytes!("../assets/LiberationSans-Bold.ttf")[..])] {
+        fonts.font_data.insert(name.into(), egui::FontData::from_static(data));
+        fonts.families.insert(egui::FontFamily::Name(name.into()), vec![name.to_string(), "Bahnschrift".to_string()]);
+    }
+    let mut fam = vec!["Bahnschrift".to_string()];
+    fam.extend(fonts.families.get(&egui::FontFamily::Proportional).cloned().unwrap_or_default());
+    fonts.families.insert(egui::FontFamily::Name("Bahnschrift".into()), fam);
+    // Bahnschrift as a last-resort fallback for UI symbols (arrows, geometric shapes) missing in egui's defaults.
+    if let Some(f) = fonts.families.get_mut(&egui::FontFamily::Proportional) { f.push("Bahnschrift".into()); }
+    registry().register(&mut fonts);
+    if let Ok(ex) = extra().lock() {
+        for (key, (bytes, index)) in &ex.fonts {
+            let mut data = egui::FontData::from_owned(bytes.as_ref().clone());
+            data.index = *index;
+            fonts.font_data.insert(key.clone(), data);
+            fonts.families.insert(egui::FontFamily::Name(key.clone().into()), vec![key.clone(), "Bahnschrift".to_string()]);
+        }
+    }
+    fonts
+}
+
+/// Rodzina egui dla fontu systemowego, jeśli jest już wczytana. Gdy nie — próbuje ją wczytać z systemu (raz), przebudowuje definicje egui
+/// i zwraca `None` (w tej klatce rysujemy zamiennikiem, od następnej krojem systemowym).
+pub fn request_system(ctx: &egui::Context, family: &str, weight: u16, italic: bool) -> Option<egui::FontFamily> {
+    let name = norm(family);
+    if name.is_empty() { return None; }
+    let key = format!("system:{}:{}:{}", name, bucket(weight), if italic { "i" } else { "n" });
+    {
+        let ex = extra().lock().ok()?;
+        if ex.fonts.contains_key(&key) { return Some(egui::FontFamily::Name(key.into())); }
+        if ex.missing.contains(&key) { return None; }
+    }
+    request_system_load(ctx, family, weight, italic, key);
+    None
+}
+
+/// Ascent (hhea.ascender / unitsPerEm) wczytanego fontu systemowego; `None`, gdy font nie jest wczytany.
+pub fn system_ascent(family: &str, weight: u16, italic: bool) -> Option<f32> {
+    let key = format!("system:{}:{}:{}", norm(family), bucket(weight), if italic { "i" } else { "n" });
+    extra().lock().ok()?.ascent.get(&key).copied()
+}
+
+fn request_system_load(ctx: &egui::Context, family: &str, weight: u16, italic: bool, key: String) {
+    let Some(sys) = SYS.get() else { return };   // skan w tle jeszcze trwa — spróbujemy w następnej klatce
+    let q = fontdb::Query {
+        families: &[fontdb::Family::Name(family.split(',').next().unwrap_or("").trim().trim_matches(|c| c == '\'' || c == '"'))],
+        weight: fontdb::Weight(bucket(weight)),
+        stretch: fontdb::Stretch::Normal,
+        style: if italic { fontdb::Style::Italic } else { fontdb::Style::Normal },
+    };
+    let loaded = sys.db.query(&q).and_then(|id| sys.db.with_face_data(id, |data, index| {
+        let ascent = ttf_parser::Face::parse(data, index).ok().map(|f| f.ascender() as f32 / f.units_per_em().max(1) as f32).filter(|a| *a > 0.3 && *a < 1.6).unwrap_or(0.95);
+        (data.to_vec(), index, ascent)
+    }));
+    let Ok(mut ex) = extra().lock() else { return };
+    match loaded {
+        Some((bytes, index, ascent)) if bytes.len() <= 40 * 1024 * 1024 => {
+            ex.fonts.insert(key.clone(), (std::sync::Arc::new(bytes), index));
+            ex.ascent.insert(key, ascent);
+            drop(ex);
+            ctx.set_fonts(build_definitions());
+            ctx.request_repaint();
+        }
+        _ => { ex.missing.insert(key); }
+    }
 }
 
 /// Rejestr procesu (wczytywany leniwie z `BTB_FONTS_DIR`, `<exe>/fonts`, `<exe>/assets/fonts` albo `assets/fonts` z drzewa źródeł).
@@ -311,6 +477,34 @@ mod tests {
         assert_eq!(css.matches("font-family: 'Oswald'").count(), 2, "latin + latin-ext jednego kroju, bez duplikatu: {}", css.len());
         assert!(css.contains("font-weight: 600") && css.contains("unicode-range") && !css.contains("Montserrat"));
         assert!(r.embed_css(&[("Nieznany".into(), 400, false)]).is_empty());
+    }
+
+    #[test]
+    fn alias_embeds_local_with_pack_fallback() {
+        let r = reg();
+        let css = r.embed_css(&[("Arial".into(), 700, false), ("arial".into(), 700, false)]);
+        assert!(css.contains("font-family: 'Arial'") && css.contains("local('Arial Bold')") && css.contains("font-weight: 700") && css.contains("base64,"), "{}", &css[..css.len().min(160)]);
+        assert_eq!(css.matches("@font-face").count(), 1, "jeden krój (Liberation ma plik `all`), bez duplikatu");
+        let seg = r.embed_css(&[("Segoe UI".into(), 400, false)]);
+        assert!(seg.contains("local('Segoe UI')") && seg.matches("@font-face").count() == 2, "Source Sans 3: latin + latin-ext");
+    }
+
+    #[test]
+    fn system_font_is_loaded_on_demand() {
+        let sys = SYS.get_or_init(load_system_db);
+        let Some(name) = ["DejaVu Sans", "Liberation Serif", "Noto Sans", "Arial", "Segoe UI", "Helvetica"].iter().find(|n| sys.families.iter().any(|f| f.eq_ignore_ascii_case(n))) else { return };
+        let ctx = egui::Context::default();
+        ctx.set_fonts(build_definitions());
+        let _ = ctx.run(Default::default(), |_| {});
+        assert!(!system_families().is_empty() && system_families().iter().any(|f| f.eq_ignore_ascii_case(name)));
+        assert!(!is_builtin_family(name) || *name == "Arial" || *name == "Helvetica");
+        if is_builtin_family(name) { return; }
+        assert!(request_system(&ctx, name, 400, false).is_none(), "pierwsze wywołanie ładuje font i zwraca None (zamiennik w tej klatce)");
+        let _ = ctx.run(Default::default(), |_| {});
+        let fam = request_system(&ctx, name, 400, false).expect("po załadowaniu rodzina egui");
+        assert!(matches!(fam, egui::FontFamily::Name(ref n) if n.starts_with("system:")));
+        assert!(system_ascent(name, 400, false).is_some_and(|a| a > 0.5 && a < 1.5));
+        assert!(request_system(&ctx, "Zupelnie Nieistniejacy Kroj", 400, false).is_none());
     }
 
     #[test]

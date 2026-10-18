@@ -525,5 +525,7 @@
   "timeline.local_stop.add.hover": "Add an intermediate stop of the IN phase",
   "font.group.local": "Local (Microsoft licence)",
   "font.group.pack": "Font pack (OFL)",
-  "font.group.system": "System (substitutes)"
+  "font.group.system": "System (substitutes)",
+  "font.group.installed": "Installed on this system",
+  "font.search": "Search fonts…"
 }

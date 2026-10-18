@@ -303,8 +303,16 @@ fn resolve_font(family: &str, weight: &str) -> (FontFamily, f32, bool) {
 }
 
 /// Jak `resolve_font`, z kursywą: czwarty element mówi, czy krój ma prawdziwą kursywę (wtedy nie pochylamy sztucznie).
-fn resolve_font_italic(family: &str, weight: &str, italic: bool) -> (FontFamily, f32, bool, bool) {
-    let r = crate::fonts::registry().resolve(family, weight, italic);
+fn resolve_font_italic(ctx: &Context, family: &str, weight: &str, italic: bool) -> (FontFamily, f32, bool, bool) {
+    let reg = crate::fonts::registry();
+    let r = reg.resolve(family, weight, italic);
+    // rodzina spoza pakietu i spoza wkompilowanych: font systemowy (D9) — wczytywany z systemu przy pierwszym użyciu
+    if r.pack_id.is_none() && reg.find(family).is_none() && !crate::fonts::is_builtin_family(family) {
+        let w = crate::fonts::css_weight(weight);
+        if let Some(f) = crate::fonts::request_system(ctx, family, w, italic) {
+            return (f, crate::fonts::system_ascent(family, w, italic).unwrap_or(0.95), true, italic);
+        }
+    }
     (r.family, r.ascent, r.real_bold, r.real_italic)
 }
 
@@ -338,7 +346,7 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
     let font = tb.font;
     let text = apply_transform(tb.text, &font.transform);
     if text.is_empty() { return 0.0; }
-    let (family, ascent_em, real_bold, real_italic) = resolve_font_italic(&font.family, &font.weight, font.italic);
+    let (family, ascent_em, real_bold, real_italic) = resolve_font_italic(ctx, &font.family, &font.weight, font.italic);
     let style = TextStyleResolved {
         size: font.size,
         color: parse_css_color(&font.color),
@@ -490,7 +498,7 @@ fn clock_text(format: &str) -> String {
 pub fn text_width(ctx: &Context, font: &FontStyle, text: &str) -> f32 {
     let text = apply_transform(text, &font.transform);
     if text.is_empty() { return 0.0; }
-    let (family, _, _, real_italic) = resolve_font_italic(&font.family, &font.weight, font.italic);
+    let (family, _, _, real_italic) = resolve_font_italic(ctx, &font.family, &font.weight, font.italic);
     let mut job = LayoutJob::default();
     job.wrap.max_width = f32::INFINITY;
     job.append(&text, 0.0, TextFormat {

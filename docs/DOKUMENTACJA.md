@@ -156,6 +156,9 @@ redystrybuowany). Pakiet pochodzi z BTB-CG (`fonts/manifest.json`, budowa: `tool
 wykonywalnego, `../Resources/fonts` (macOS), `../share/<nazwa>/fonts` (deb/AppImage) albo w katalogu z `BTB_FONTS_DIR`. Bez pakietu działają Bahnschrift i Liberation.
 Lista krojów w inspektorze (*Krój*) jest grupowana: lokalny, pakiet, systemowe. Canvas dobiera **najbliższą wagę i kursywę** z pakietu (przy remisie cięższą); rodzina bez kursywy (np. Oswald)
 jest pochylana sztucznie. Strona wyjściowa i podgląd HTML osadzają (base64) **dokładnie te kroje, których używa element** — font jest częścią strony belki (zasada D10 planu M3), więc nic nie doczytuje się z sieci.
+**Fonty systemowe:** w liście krojów jest grupa „Zainstalowane w systemie” z wyszukiwarką (skan w tle, `fontdb`); wybrany font jest wczytywany z systemu do canvasu przy pierwszym użyciu
+(w pierwszej klatce rysowany zamiennikiem). Działa tylko tam, gdzie font jest zainstalowany — strona wyjściowa osadza dla Arial/Helvetica/Segoe UI/Calibri/Verdana/Tahoma/Arial Narrow/Impact
+`local()` z zamiennikiem z pakietu (Liberation Sans, Source Sans 3, Inter, Roboto Condensed, Oswald), więc nie rozjedzie się na maszynie bez tego fontu; innych fontów systemowych nie osadzamy (licencje).
 Znane ograniczenie: egui nie stosuje kerningu GPOS, więc tekst z parami kerningowymi (WA, Ty…) bywa szerszy w canvasie niż w przeglądarce (do ~4% na próbce testowej; test `egui_text_widths_match_browser_for_font_pack`).
 
 ### 5.7 Auto-szerokość tekstu

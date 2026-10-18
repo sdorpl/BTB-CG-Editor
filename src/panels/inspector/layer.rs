@@ -251,6 +251,17 @@ fn font_props(ui: &mut Ui, f: &mut FontStyle, salt: &str) {
             for fam in &pack { pick(ui, fam); }
             ui.separator(); ui.weak(tr("font.group.system"));
             for fam in ["Arial", "Helvetica", "Liberation Sans"] { pick(ui, fam); }
+            // fonty zainstalowane w systemie (D9): wyszukiwarka, pierwsze dopasowania; działają tylko tam, gdzie są zainstalowane
+            let installed = crate::fonts::system_families();
+            if !installed.is_empty() {
+                ui.separator(); ui.weak(tr("font.group.installed"));
+                let qid = ui.make_persistent_id(format!("fam_q_{salt}"));
+                let mut q: String = ui.data_mut(|d| d.get_temp(qid)).unwrap_or_default();
+                ui.add(egui::TextEdit::singleline(&mut q).hint_text(tr("font.search")).desired_width(160.0));
+                ui.data_mut(|d| d.insert_temp(qid, q.clone()));
+                let ql = q.to_lowercase();
+                for fam in installed.iter().filter(|n| ql.is_empty() || n.to_lowercase().contains(&ql)).take(40) { pick(ui, fam); }
+            }
         });
     });
     egui::Grid::new(format!("font_{salt}")).num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
