@@ -19,6 +19,7 @@ mod playback;
 mod preview;
 mod presets;
 mod render;
+mod text;
 
 use app::{Cli, CgEditorApp};
 use playback::Phase;
