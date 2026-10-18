@@ -93,6 +93,10 @@ Stan faz: 0–6 zrobione (rdzeń, most, odtwarzacz, WASM, strona wyjściowa, zgo
 
 `assets/btb-motion-player.js` bez `window.BTB_CONFIG` tylko definiuje `BtbMotion.compile(bytes)` / `BtbMotion.create(module, { director, tickers, squash, fit, manual, embedded: { root, fx } })` — tryb osadzony dla `renderer.js` BTB-CG: bez renderowania szablonu, bez `fit`/`squash` (robi je renderer), widoczność po stronie renderera, `destroy()`. **Każdy element ma własną instancję WASM** (silnik trzyma stan globalnie). `tools/vendor-to-btb-cg.sh` kopiuje player + wasm do `BTB-CG/vendor/btb-motion/` (uruchom po zmianie playera lub `make wasm`); test po stronie BTB-CG: `node test-motion-runtime.js`. Tryb samodzielny (`--write-motion-html`) działa jak dotąd (`tools/e2e-motion.js`).
 
+## Pionowe wyśrodkowanie tekstu na stronie wyjściowej
+
+Strona `--write-motion-html` i `output.html` w BTB-CG mają `.cg-i > .cg-t { width: 100% }` **bez `height: 100%`**: z wysokością 100% tekst przyklejał się do góry pudełka (do kilkunastu px przesunięcia względem podglądów), bo wyśrodkowanie robi `align-items` warstwy. `preview.rs` (podgląd HTML edytora) ma własną poprawkę `line-height: <h>px` + 0,073 em dla Bahnschrift (`compile::text_centering_css`) i dlatego zostawia `height: 100%`. Test: `test-output-text-pos.js` (BTB-CG).
+
 ## Artefakt `motion` (M2.1)
 
 `compile::apply_to_element` woła `refresh_motion`: element z kluczami/ścieżką dostaje w `extra["motion"]` wynik `motion_page::artifact` (`{ version, director, tickers, squash, fit }`), inne go tracą. To dane dla runtime'u WASM w BTB-CG (plan M2: `docs/plans/M2-runtime-wasm.md`). Zmiana kształtu = podniesienie `MOTION_VERSION` i zmiana walidacji w `editor-io.js` BTB-CG.

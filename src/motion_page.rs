@@ -99,7 +99,7 @@ html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; 
 .cg-t p, .cg-t h1, .cg-t h2, .cg-t h3, .cg-t h4, .cg-t ul, .cg-t ol, .cg-t li, .cg-t blockquote { margin: 0; padding: 0; }
 .cg-t p + p { margin-top: 0.4em; }
 .slt-squash { display: inline-block !important; transform-origin: left center !important; white-space: nowrap !important; }
-.cg-i > .cg-t { width: 100%; height: 100%; overflow: hidden; }
+.cg-i > .cg-t { width: 100%; }
 @@SCENE_CSS@@
 </style></head>
 <body>
