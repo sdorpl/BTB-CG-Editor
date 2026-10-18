@@ -148,6 +148,16 @@ i wychodzi. Zdarzenia odtwarzacza: `hold` (z `name`: `stop1`… albo `hold`), `c
 Local Stopach — widać je tylko jako znaczniki; zatrzymania sprawdzisz na stronie wyjściowej. Element z Local Stopami ma artefakt `motion`
 (`stops`: lista czasów) i gra silnikiem WASM.
 
+### 5.6b Fonty (pakiet fontów)
+
+Edytor ma pakiet fontów na otwartych licencjach (SIL OFL): Inter, Roboto, Roboto Condensed, Barlow Condensed, Montserrat, Oswald, Source Sans 3, Encode Sans Condensed
+(Latin + Latin-Ext, pełne pokrycie polskich znaków) oraz Liberation Sans jako zamiennik Arial/Helvetica. **Bahnschrift** jest fontem lokalnym (licencja Microsoft — nie jest
+redystrybuowany). Pakiet pochodzi z BTB-CG (`fonts/manifest.json`, budowa: `tools/build-font-pack.js`) i leży w `assets/fonts/`; w zainstalowanej aplikacji szukany jest w `fonts/` obok pliku
+wykonywalnego, `../Resources/fonts` (macOS), `../share/<nazwa>/fonts` (deb/AppImage) albo w katalogu z `BTB_FONTS_DIR`. Bez pakietu działają Bahnschrift i Liberation.
+Lista krojów w inspektorze (*Krój*) jest grupowana: lokalny, pakiet, systemowe. Canvas dobiera **najbliższą wagę i kursywę** z pakietu (przy remisie cięższą); rodzina bez kursywy (np. Oswald)
+jest pochylana sztucznie. Strona wyjściowa i podgląd HTML osadzają (base64) **dokładnie te kroje, których używa element** — font jest częścią strony belki (zasada D10 planu M3), więc nic nie doczytuje się z sieci.
+Znane ograniczenie: egui nie stosuje kerningu GPOS, więc tekst z parami kerningowymi (WA, Ty…) bywa szerszy w canvasie niż w przeglądarce (do ~4% na próbce testowej; test `egui_text_widths_match_browser_for_font_pack`).
+
 ### 5.7 Auto-szerokość tekstu
 
 Warstwa tekstowa z opcją **Auto-szerokość** (*Zaawansowane*) ma szerokość równą szerokości tekstu; pole `w` to szerokość

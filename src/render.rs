@@ -295,20 +295,17 @@ fn apply_transform(text: &str, how: &str) -> String {
         _ => text.to_string() }
 }
 
-/// hhea.ascender / unitsPerEm dla BAHNSCHRIFT.TTF (2036/2048) i LiberationSans (1854/2048).
-const BAHN_ASCENT: f32 = 2036.0 / 2048.0;
-const LIBERATION_ASCENT: f32 = 1854.0 / 2048.0;
-
-/// Krój do rysowania: Arial/Helvetica/sans-serif to w przeglądarce (Linux) Liberation Sans, metrycznie zgodny z Arialem;
-/// reszta zostaje Bahnschriftem (jak `@font-face` na stronie). Zwraca (rodzina, ascent hhea, prawdziwy bold?).
+/// Krój do rysowania (rejestr pakietu fontów, `crate::fonts`): Arial/Helvetica/sans-serif to Liberation Sans, rodziny z pakietu to ich
+/// kroje (najbliższa waga/kursywa), reszta zostaje Bahnschriftem (jak `@font-face` na stronie). Zwraca (rodzina, ascent hhea, prawdziwy bold?).
 fn resolve_font(family: &str, weight: &str) -> (FontFamily, f32, bool) {
-    let bold = weight.parse::<u32>().unwrap_or(400) >= 600 || weight.eq_ignore_ascii_case("bold");
-    let f = family.split(',').next().unwrap_or("").trim().trim_matches(|c| c == '\'' || c == '"').to_ascii_lowercase();
-    if matches!(f.as_str(), "arial" | "helvetica" | "liberation sans" | "sans-serif" | "arial narrow") {
-        (FontFamily::Name(if bold { "LiberationBold" } else { "LiberationRegular" }.into()), LIBERATION_ASCENT, true)
-    } else {
-        (FontFamily::Name("Bahnschrift".into()), BAHN_ASCENT, false)
-    }
+    let r = crate::fonts::registry().resolve(family, weight, false);
+    (r.family, r.ascent, r.real_bold)
+}
+
+/// Jak `resolve_font`, z kursywą: czwarty element mówi, czy krój ma prawdziwą kursywę (wtedy nie pochylamy sztucznie).
+fn resolve_font_italic(family: &str, weight: &str, italic: bool) -> (FontFamily, f32, bool, bool) {
+    let r = crate::fonts::registry().resolve(family, weight, italic);
+    (r.family, r.ascent, r.real_bold, r.real_italic)
 }
 
 struct TextBox<'a> {
@@ -341,7 +338,7 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
     let font = tb.font;
     let text = apply_transform(tb.text, &font.transform);
     if text.is_empty() { return 0.0; }
-    let (family, ascent_em, real_bold) = resolve_font(&font.family, &font.weight);
+    let (family, ascent_em, real_bold, real_italic) = resolve_font_italic(&font.family, &font.weight, font.italic);
     let style = TextStyleResolved {
         size: font.size,
         color: parse_css_color(&font.color),
@@ -357,7 +354,7 @@ fn draw_text(painter: &Painter, ctx: &Context, zoom: f32, m: &Aff, tb: &TextBox,
         extra_letter_spacing: font.letter_spacing * zoom,
         line_height: Some(style.size * font.line_height * zoom),
         color: Color32::WHITE,
-        italics: font.italic,
+        italics: font.italic && !real_italic,
         ..Default::default()
     });
     let galley = ctx.fonts(|f| f.layout_job(job));
@@ -493,7 +490,7 @@ fn clock_text(format: &str) -> String {
 pub fn text_width(ctx: &Context, font: &FontStyle, text: &str) -> f32 {
     let text = apply_transform(text, &font.transform);
     if text.is_empty() { return 0.0; }
-    let (family, _, _) = resolve_font(&font.family, &font.weight);
+    let (family, _, _, real_italic) = resolve_font_italic(&font.family, &font.weight, font.italic);
     let mut job = LayoutJob::default();
     job.wrap.max_width = f32::INFINITY;
     job.append(&text, 0.0, TextFormat {
@@ -501,7 +498,7 @@ pub fn text_width(ctx: &Context, font: &FontStyle, text: &str) -> f32 {
         extra_letter_spacing: font.letter_spacing,
         line_height: Some(font.size * font.line_height),
         color: Color32::WHITE,
-        italics: font.italic,
+        italics: font.italic && !real_italic,
         ..Default::default()
     });
     ctx.fonts(|f| f.layout_job(job)).rect.width()
@@ -885,5 +882,45 @@ mod fit_tests {
         }
         let orphan = shape("o", 0.0, 10.0, "brak", "size");
         assert!(fit_adjust(&[&orphan], &HashMap::new()).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod font_parity_tests {
+    use super::*;
+
+    /// Parytet szerokości tekstu: egui (canvas edytora) ↔ Chromium (strona wyjściowa) dla każdego kroju z pakietu fontów.
+    /// Wzorzec: `tests/fonts/browser-widths.json` (`node tools/font-widths.js`). Tolerancja: 1,2% + 1 px (kerning i zaokrąglenia glifów).
+    #[test]
+    fn egui_text_widths_match_browser_for_font_pack() {
+        let Ok(text) = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fonts/browser-widths.json")) else { return };
+        let data: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
+        let (Some(samples), Some(faces)) = (data["samples"].as_array(), data["faces"].as_array()) else { return };
+        let reg = crate::fonts::registry();
+        if reg.families.is_empty() { return; }
+        let ctx = Context::default();
+        crate::app::setup_fonts(&ctx);
+        let _ = ctx.run(Default::default(), |_| {});
+        let mut worst = (0.0f32, String::new());
+        let mut bad = vec![];
+        for f in faces {
+            let id = f["id"].as_str().unwrap_or("");
+            let Some(fam) = reg.families.iter().find(|x| x.id == id) else { continue };
+            let weight = f["weight"].as_u64().unwrap_or(400);
+            let italic = f["italic"].as_bool().unwrap_or(false);
+            let mut fs = FontStyle::default();
+            fs.family = fam.name.clone(); fs.weight = weight.to_string(); fs.italic = italic; fs.size = 40.0; fs.letter_spacing = 0.0; fs.transform = "none".into();
+            for (i, s) in samples.iter().enumerate() {
+                let want = f["widths"][i].as_f64().unwrap_or(0.0) as f32;
+                let got = text_width(&ctx, &fs, s.as_str().unwrap_or(""));
+                let err = (got - want).abs();
+                if err > worst.0 { worst = (err, format!("{id} {weight} i={italic} sample {i}: egui {got:.1} vs browser {want:.1}")); }
+                // Próbka 1 to pary kerningowe (WA, Ty, yp…): egui (ab_glyph) nie stosuje GPOS, przeglądarka tak — znana luka M3.6
+                // (kerning w egui); tu pilnujemy, żeby nie rosła: próbka 0 (bez ciężkich par) ≤ 1,2%, próbka 2 (zdanie z „Wy”, „ża”) ≤ 1,8%, próbka 1 (WAVE, Ty…) ≤ 4,5%, każda + 1 px.
+                let tol = want * [0.012, 0.045, 0.018][i.min(2)] + 1.0;
+                if err > tol { bad.push(format!("{id} {weight}{} #{i}: egui {got:.1} ≠ browser {want:.1}", if italic { " italic" } else { "" })); }
+            }
+        }
+        assert!(bad.is_empty(), "rozjazd szerokości egui ↔ przeglądarka ({} z {}), najgorszy {:?}:\n{}", bad.len(), faces.len() * samples.len(), worst, bad.iter().take(15).cloned().collect::<Vec<_>>().join("\n"));
     }
 }

@@ -522,5 +522,8 @@
   "timeline.local_stops": "Local Stops:",
   "timeline.local_stops.hover": "Intermediate stops of the IN phase (timeline seconds). On air the Continue command resumes them; the final Stop (above) is the hold before OUT.",
   "timeline.local_stop.add": "+ Local Stop",
-  "timeline.local_stop.add.hover": "Add an intermediate stop of the IN phase"
+  "timeline.local_stop.add.hover": "Add an intermediate stop of the IN phase",
+  "font.group.local": "Local (Microsoft licence)",
+  "font.group.pack": "Font pack (OFL)",
+  "font.group.system": "System (substitutes)"
 }

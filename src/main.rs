@@ -3,6 +3,7 @@ mod app;
 mod canvas;
 mod compile;
 mod convert;
+mod fonts;
 mod gpu;
 mod i18n;
 mod importer;

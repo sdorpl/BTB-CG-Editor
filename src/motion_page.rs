@@ -84,6 +84,7 @@ pub fn build_html(el: &Element, manual: bool) -> Result<String, String> {
     Ok(TEMPLATE
         .replace("@@TITLE@@", &el.name.replace('<', "&lt;"))
         .replace("@@FONT@@", &base64::engine::general_purpose::STANDARD.encode(FONT))
+        .replace("@@PACKFONTS@@", &crate::fonts::page_css(el))
         .replace("@@ROOT@@", &format!("left:{x}px;top:{y}px;width:{fw}px;height:{fh}px;transform:scale({sc}) rotate({rot}deg);opacity:{op};"))
         .replace("@@SCENE_CSS@@", &css.replace("</style", "<\\/style"))
         .replace("@@CONFIG@@", &script_safe(&json))
@@ -94,6 +95,7 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8"><title>@@TITLE@@</title>
 <style>
 @font-face { font-family: 'Bahnschrift'; src: url(data:font/ttf;base64,@@FONT@@) format('truetype'); font-weight: 100 900; }
+@@PACKFONTS@@
 html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; overflow: hidden; }
 #btb-root { position: absolute; transform-origin: 0 0; visibility: hidden; pointer-events: none; @@ROOT@@ }
 #btb-root .btb-fx { position: absolute; inset: 0; }
@@ -144,6 +146,17 @@ mod tests {
             // tx: 0 -> 100 w 1 s (IN), dalej stała; krycie: 0 -> 1 w 0,5 s (IN), po Stop 1 -> 0 w 0,5 s (OUT)
             s.layers[0].keys = vec![ch("tx", vec![key(0.0, 0.0), key(1.0, 100.0)]), ch("opacity", vec![key(0.0, 0.0), key(0.5, 1.0), key(1.2, 1.0), key(1.7, 0.0)])];
             std::fs::write(dir.join("keys_pure.element.json"), serde_json::to_string(&[&el]).unwrap()).unwrap();
+        }
+        // krój z pakietu fontów (M3.1/D10): Oswald 600 w warstwie tekstu — strona wyjściowa osadza dokładnie ten krój
+        {
+            let mut el = Element::new_typed("font_oswald", "BADGE");
+            let s = el.scene.as_mut().unwrap();
+            for l in s.layers.iter_mut().filter(|l| l.layer_type == LayerType::Text) {
+                let mut f = l.font_or_default();
+                f.family = "Oswald".into(); f.weight = "600".into();
+                l.font = Some(f);
+            }
+            std::fs::write(dir.join("font_oswald.fonts.json"), serde_json::to_string(&[&el]).unwrap()).unwrap();
         }
         // Local Stop (M2.6): tx 0 -> 90 w 3 s, pośrednie Stopy w 1 s i 2 s, ostatni Stop w 3 s; po nim OUT = krycie 1 -> 0 w 0,5 s
         {

@@ -47,6 +47,7 @@ pub fn build_html(el: &Element, base_url: &str) -> Result<String, String> {
     Ok(TEMPLATE
         .replace("@@TITLE@@", &el.name.replace('<', "&lt;"))
         .replace("@@FONT@@", &font_b64)
+        .replace("@@PACKFONTS@@", &crate::fonts::page_css(el))
         .replace("@@FIXES@@", &el.scene.as_ref().map(crate::compile::text_centering_css).unwrap_or_default())
         .replace("@@ELEMENT@@", &script_safe(&json))
         .replace("@@CGMOTION@@", &script_safe(&cgmotion))
@@ -68,6 +69,7 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 @font-face { font-family: 'Bahnschrift'; src: url(data:font/ttf;base64,@@FONT@@) format('truetype'); font-weight: 100 900; }
+@@PACKFONTS@@
 html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 13px system-ui, sans-serif; overflow: hidden; }
 #bar { height: 44px; display: flex; gap: 8px; align-items: center; padding: 0 12px; background: #1c1c1f; border-bottom: 1px solid #333; }
 #bar button { background: #2d2d33; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 13px; }

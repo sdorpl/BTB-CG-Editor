@@ -241,7 +241,16 @@ fn font_props(ui: &mut Ui, f: &mut FontStyle, salt: &str) {
         ui.label(tr("font.family"));
         ui.add(egui::TextEdit::singleline(&mut f.family).desired_width(120.0));
         egui::ComboBox::from_id_salt(format!("fam_{salt}")).selected_text("▾").width(20.0).show_ui(ui, |ui| {
-            for fam in ["Bahnschrift", "Arial", "Helvetica", "Liberation Sans"] { if ui.selectable_label(f.family.eq_ignore_ascii_case(fam), fam).clicked() { f.family = fam.into(); } }
+            // lista z pakietu fontów (manifest): Bahnschrift (lokalny) → rodziny OFL z pakietu → systemowe odpowiedniki (Arial → Liberation Sans)
+            let reg = crate::fonts::registry();
+            let mut pick = |ui: &mut Ui, fam: &str| { if ui.selectable_label(f.family.eq_ignore_ascii_case(fam), fam).clicked() { f.family = fam.into(); } };
+            ui.weak(tr("font.group.local"));
+            pick(ui, "Bahnschrift");
+            let pack: Vec<String> = reg.family_names().into_iter().filter(|(_, p)| *p).map(|(n, _)| n).collect();
+            if !pack.is_empty() { ui.separator(); ui.weak(tr("font.group.pack")); }
+            for fam in &pack { pick(ui, fam); }
+            ui.separator(); ui.weak(tr("font.group.system"));
+            for fam in ["Arial", "Helvetica", "Liberation Sans"] { pick(ui, fam); }
         });
     });
     egui::Grid::new(format!("font_{salt}")).num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {

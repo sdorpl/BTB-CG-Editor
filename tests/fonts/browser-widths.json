@@ -1,0 +1,510 @@
+{
+ "size": 40,
+ "samples": [
+  "Zażółć gęślą jaźń ĄĆĘŁŃÓŚŹŻ",
+  "WAVE Typography 0123456789",
+  "Wydanie specjalne: na żywo z Białegostoku"
+ ],
+ "faces": [
+  {
+   "id": "inter",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    579,
+    600,
+    824
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    587,
+    607,
+    838
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    586,
+    616,
+    842
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    594,
+    620,
+    851
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 800,
+   "italic": false,
+   "widths": [
+    601,
+    635,
+    867
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 900,
+   "italic": false,
+   "widths": [
+    612,
+    641,
+    878
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    587,
+    602,
+    836
+   ]
+  },
+  {
+   "id": "inter",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    600,
+    623,
+    859
+   ]
+  },
+  {
+   "id": "roboto",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    547,
+    552,
+    771
+   ]
+  },
+  {
+   "id": "roboto",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    549,
+    567,
+    777
+   ]
+  },
+  {
+   "id": "roboto",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    549,
+    569,
+    781
+   ]
+  },
+  {
+   "id": "roboto",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    525,
+    542,
+    744
+   ]
+  },
+  {
+   "id": "roboto",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    537,
+    549,
+    761
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 300,
+   "italic": false,
+   "widths": [
+    474,
+    479,
+    667
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    480,
+    492,
+    680
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    484,
+    495,
+    690
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    487,
+    498,
+    692
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    465,
+    473,
+    662
+   ]
+  },
+  {
+   "id": "roboto-condensed",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    475,
+    486,
+    676
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    398,
+    405,
+    590
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    407,
+    414,
+    602
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    412,
+    423,
+    615
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    426,
+    438,
+    633
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 800,
+   "italic": false,
+   "widths": [
+    436,
+    446,
+    647
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    386,
+    391,
+    571
+   ]
+  },
+  {
+   "id": "barlow-condensed",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    411,
+    422,
+    607
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    600,
+    614,
+    862
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    605,
+    623,
+    875
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    615,
+    631,
+    894
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    624,
+    646,
+    909
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 800,
+   "italic": false,
+   "widths": [
+    633,
+    657,
+    935
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 900,
+   "italic": false,
+   "widths": [
+    642,
+    668,
+    950
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    609,
+    618,
+    875
+   ]
+  },
+  {
+   "id": "montserrat",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    635,
+    650,
+    923
+   ]
+  },
+  {
+   "id": "oswald",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    419,
+    452,
+    618
+   ]
+  },
+  {
+   "id": "oswald",
+   "weight": 500,
+   "italic": false,
+   "widths": [
+    444,
+    473,
+    659
+   ]
+  },
+  {
+   "id": "oswald",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    456,
+    486,
+    680
+   ]
+  },
+  {
+   "id": "oswald",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    462,
+    493,
+    694
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    493,
+    509,
+    718
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    505,
+    529,
+    736
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    515,
+    536,
+    757
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 900,
+   "italic": false,
+   "widths": [
+    523,
+    552,
+    771
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 400,
+   "italic": true,
+   "widths": [
+    473,
+    487,
+    699
+   ]
+  },
+  {
+   "id": "source-sans-3",
+   "weight": 700,
+   "italic": true,
+   "widths": [
+    503,
+    514,
+    744
+   ]
+  },
+  {
+   "id": "encode-sans-condensed",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    452,
+    480,
+    656
+   ]
+  },
+  {
+   "id": "encode-sans-condensed",
+   "weight": 600,
+   "italic": false,
+   "widths": [
+    474,
+    506,
+    694
+   ]
+  },
+  {
+   "id": "encode-sans-condensed",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    485,
+    520,
+    716
+   ]
+  },
+  {
+   "id": "encode-sans-condensed",
+   "weight": 800,
+   "italic": false,
+   "widths": [
+    502,
+    541,
+    740
+   ]
+  },
+  {
+   "id": "liberation-sans",
+   "weight": 400,
+   "italic": false,
+   "widths": [
+    558,
+    563,
+    772
+   ]
+  },
+  {
+   "id": "liberation-sans",
+   "weight": 700,
+   "italic": false,
+   "widths": [
+    578,
+    581,
+    821
+   ]
+  }
+ ]
+}

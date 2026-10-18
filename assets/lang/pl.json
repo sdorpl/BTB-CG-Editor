@@ -522,5 +522,8 @@
   "timeline.local_stops": "Local Stopy:",
   "timeline.local_stops.hover": "Pośrednie zatrzymania wejścia (czas osi). Na wizji wznawia je polecenie „Dalej” (Continue); ostatni Stop (powyżej) to zatrzymanie przed wyjściem.",
   "timeline.local_stop.add": "+ Local Stop",
-  "timeline.local_stop.add.hover": "Dodaj pośrednie zatrzymanie wejścia"
+  "timeline.local_stop.add.hover": "Dodaj pośrednie zatrzymanie wejścia",
+  "font.group.local": "Lokalny (licencja Microsoft)",
+  "font.group.pack": "Pakiet fontów (OFL)",
+  "font.group.system": "Systemowe (zamienniki)"
 }

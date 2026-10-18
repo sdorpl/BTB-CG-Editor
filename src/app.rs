@@ -528,6 +528,7 @@ pub(crate) fn setup_fonts(ctx: &egui::Context) {
     fonts.families.insert(egui::FontFamily::Name("Bahnschrift".into()), fam);
     // Bahnschrift as a last-resort fallback for UI symbols (arrows, geometric shapes) missing in egui's defaults.
     if let Some(f) = fonts.families.get_mut(&egui::FontFamily::Proportional) { f.push("Bahnschrift".into()); }
+    crate::fonts::registry().register(&mut fonts);
     ctx.set_fonts(fonts);
 }
 

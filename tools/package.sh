@@ -62,6 +62,7 @@ package_linux() {
   install -Dm644 packaging/$NAME.desktop "$pkg/usr/share/applications/$NAME.desktop"
   install -Dm644 assets/icon.png "$pkg/usr/share/icons/hicolor/512x512/apps/$NAME.png"
   [ -n "$RT" ] && { mkdir -p "$pkg/usr/share/$NAME"; cp -a "$RT" "$pkg/usr/share/$NAME/runtime"; rm -f "$pkg/usr/share/$NAME/runtime/.complete"; }
+  mkdir -p "$pkg/usr/share/$NAME"; cp -a assets/fonts "$pkg/usr/share/$NAME/fonts"   # pakiet fontów (M3.1): <exe>/../share/<nazwa>/fonts
   install -d "$pkg/DEBIAN"
   local size; size="$(du -sk "$pkg/usr" | cut -f1)"
   cat > "$pkg/DEBIAN/control" <<CTRL
@@ -88,6 +89,7 @@ CTRL
   install -Dm644 assets/icon.png "$appdir/$NAME.png"
   install -Dm644 assets/icon.png "$appdir/usr/share/icons/hicolor/512x512/apps/$NAME.png"
   [ -n "$RT" ] && { mkdir -p "$appdir/usr/share/$NAME"; cp -a "$RT" "$appdir/usr/share/$NAME/runtime"; rm -f "$appdir/usr/share/$NAME/runtime/.complete"; }
+  mkdir -p "$appdir/usr/share/$NAME"; cp -a assets/fonts "$appdir/usr/share/$NAME/fonts"
   cat > "$appdir/AppRun" <<'RUN'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
@@ -119,6 +121,7 @@ package_windows() {
   mkdir "$work/$NAME-$VERSION"
   cp "$BIN" "$work/$NAME-$VERSION/$NAME.exe"
   [ -n "$RT" ] && { cp -a "$RT" "$work/$NAME-$VERSION/runtime"; rm -f "$work/$NAME-$VERSION/runtime/.complete"; }
+  cp -a assets/fonts "$work/$NAME-$VERSION/fonts"
   if command -v zip >/dev/null; then
     (cd "$work" && zip -qr "$DIST/$NAME-$VERSION-windows-$arch.zip" "$NAME-$VERSION")
   else
@@ -139,6 +142,7 @@ package_macos() {
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
   cp "$BIN" "$app/Contents/MacOS/$NAME"
   [ -n "$RT" ] && { cp -a "$RT" "$app/Contents/Resources/runtime"; rm -f "$app/Contents/Resources/runtime/.complete"; }
+  cp -a assets/fonts "$app/Contents/Resources/fonts"
   # ikona .icns z assets/icon.png
   local iset="$work/icon.iconset"; mkdir "$iset"
   for s in 16 32 64 128 256 512; do
