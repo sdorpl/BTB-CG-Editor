@@ -57,6 +57,58 @@ async function checkPath(page, tickTo, check) {
   near(v.x, 100, 1.0, 'x po końcu ścieżki'); near(v.y, 60, 1.0, 'y po końcu ścieżki');
 }
 
+// Local Stop (M2.6): tx 0 -> 90 w 3 s; Stopy w 1 s i 2 s (continue), ostatni w 3 s; OFF na pośrednim Stopie dogrywa wejście i wychodzi.
+async function runStops(browser) {
+  const src = path.join(dir, 'stops_pure.stops.json');
+  if (!fs.existsSync(src)) { check(false, 'brak stops_pure.stops.json (cargo test export_e2e_elements)'); return; }
+  console.log('stops_pure');
+  const html = path.join(dir, 'stops_pure.motion.html');
+  execFileSync(bin, ['--write-motion-html', src, html, '0', 'manual']);
+  const open = async () => {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    await page.goto('file://' + html);
+    await page.waitForFunction(() => window.btb || window.btbError, null, { timeout: 10000 });
+    await page.evaluate(() => { window.__ev = []; ['hold', 'continue', 'end'].forEach(e => btb.on(e, (d) => window.__ev.push(e + ':' + ((d && d.name) || '')))); });
+    return page;
+  };
+  const tickTo = (page, t) => page.evaluate((t) => { const n = Math.round(t * 100); for (let i = 0; i < n; i++) btb.tick(0.01); }, t);
+  const tx = (page) => page.evaluate(() => { const m = /translate\(([-\d.e]+)px/.exec(document.querySelector('[data-layer]').style.transform || ''); return m ? parseFloat(m[1]) : 0; });
+  const ev = (page) => page.evaluate(() => window.__ev.slice());
+  const near = (a, b, tol, msg) => check(Math.abs(a - b) <= tol, `${msg}: ${a} != ${b}`);
+
+  // A) Continue krok po kroku
+  let page = await open();
+  await page.evaluate(() => btb.take());
+  await tickTo(page, 1.5);                                  // minął Stop w 1 s: oś stoi w 1 s
+  near(await tx(page), 30, 1.0, 'tx na Stopie w 1 s');
+  await tickTo(page, 1.0);                                  // stoi dalej
+  near(await tx(page), 30, 1.0, 'oś stoi na pośrednim Stopie');
+  check((await ev(page)).includes('hold:stop1'), 'zdarzenie hold:stop1, mamy ' + (await ev(page)));
+  check(await page.evaluate(() => btb['continue']()), 'continue na Stopie zwraca true');
+  await tickTo(page, 1.5);                                  // do Stopu w 2 s
+  near(await tx(page), 60, 1.0, 'tx na Stopie w 2 s');
+  await page.evaluate(() => btb['continue']());
+  await tickTo(page, 1.5);                                  // do ostatniego Stopu w 3 s
+  near(await tx(page), 90, 1.0, 'tx na ostatnim Stopie');
+  check((await ev(page)).includes('hold:hold'), 'zdarzenie hold:hold, mamy ' + (await ev(page)));
+  await page.evaluate(() => btb['continue']());             // z ostatniego Stopu: OUT
+  await tickTo(page, 1.0);
+  check((await ev(page)).includes('end:'), 'zdarzenie end po continue z ostatniego Stopu, mamy ' + (await ev(page)));
+  check(!(await page.evaluate(() => btb['continue']())), 'continue bez Stopu zwraca false');
+  await page.close();
+
+  // B) OFF na pośrednim Stopie: dogrywa wejście bez zatrzymań i wychodzi
+  page = await open();
+  await page.evaluate(() => btb.take());
+  await tickTo(page, 1.5);
+  await page.evaluate(() => btb.off());
+  await tickTo(page, 6.0);
+  const e2 = await ev(page);
+  check(e2.includes('end:'), 'OFF na pośrednim Stopie kończy się end, mamy ' + e2);
+  check(!e2.includes('hold:stop2') || e2.indexOf('end:') > e2.indexOf('hold:stop2'), 'OFF przejeżdża pośrednie Stopy');
+  await page.close();
+}
+
 (async () => {
   const browser = await chromium.launch();
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.element.json'));
@@ -105,6 +157,7 @@ async function checkPath(page, tickTo, check) {
     if (name === 'path_pure') await checkPath(page, tickTo, check);
     await page.close();
   }
+  await runStops(browser);
   await browser.close();
   if (failed) { console.error(`\n${failed} niepowodzeń`); process.exit(1); }
   console.log(`\nOK (${files.length} elementów, zrzuty: ${shots})`);

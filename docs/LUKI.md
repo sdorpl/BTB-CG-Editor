@@ -50,7 +50,7 @@ i wierność idą przed nowymi funkcjami.
 | 20 | Tryby mieszania | G |
 | 21 | Wiggle i proste ekspresje | H |
 | 22 | Biblioteka presetów animacji (własne) | I |
-| 23 | Local Stop (wiele punktów) | J |
+| 23 | ~~Local Stop (wiele punktów)~~ — zrobione (M2.6, 2026-10-18): model, silnik, player, oś czasu; otwarte: zatrzymania w podglądzie egui, czas Stop liczony z tekstu domyślnego (luka 7) | J |
 | 24 | Kształty wektorowe | K |
 | 25 | Skróty AE do odsłaniania właściwości, edytor skrótów, wybór języka w UI, paleta poleceń | L, M |
 | 26 | Podgląd na żywo (hot reload) do OBS | N |

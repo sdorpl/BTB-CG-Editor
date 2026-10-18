@@ -597,6 +597,23 @@ pub struct ElementAnimation {
     pub extra: Extra,
 }
 
+impl ElementAnimation {
+    /// Punkty Local Stop (M2.6): pośrednie zatrzymania wejścia, w sekundach osi, rosnąco, tylko skończone i > 0. Ostatnie zatrzymanie
+    /// (przed wyjściem) to zwykły Stop (`stopAt` / koniec wejścia) — tu go nie ma. Zapis: `animation.stops` (tablica liczb).
+    pub fn local_stops(&self) -> Vec<f32> {
+        let mut v: Vec<f32> = self.extra.get("stops").and_then(|s| s.as_array()).map(|a| a.iter().filter_map(|x| x.as_f64()).map(|x| x as f32).filter(|x| x.is_finite() && *x > 0.0).collect()).unwrap_or_default();
+        v.sort_by(|a, b| a.total_cmp(b));
+        v.dedup_by(|a, b| (*a - *b).abs() < 1e-3);
+        v.truncate(32);
+        v
+    }
+    pub fn set_local_stops(&mut self, mut v: Vec<f32>) {
+        v.retain(|x| x.is_finite() && *x > 0.0);
+        v.sort_by(|a, b| a.total_cmp(b));
+        if v.is_empty() { self.extra.remove("stops"); } else { self.extra.insert("stops".into(), serde_json::Value::from(v.iter().map(|x| (*x as f64 * 1000.0).round() / 1000.0).collect::<Vec<f64>>())); }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LoopSpec {
     #[serde(rename = "type", default)]

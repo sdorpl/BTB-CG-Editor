@@ -56,14 +56,15 @@ pub fn config(el: &Element, manual: bool) -> Result<Value, String> {
 /// Wersja kontraktu `element.motion` (docs/edytor-kontrakt.md w BTB-CG, M2.1).
 pub const MOTION_VERSION: u32 = 1;
 
-/// Dane dla runtime'u WASM po stronie BTB-CG: `{ version, director, tickers, squash, fit }`. `None`, gdy element nie ma
+/// Dane dla runtime'u WASM po stronie BTB-CG: `{ version, stops, director, tickers, squash, fit }` (`stops` = czasy pośrednich Local Stop). `None`, gdy element nie ma
 /// kluczy ani ścieżki (gra przez `CGMotion`) albo nie da się go zbudować. HTML/CSS/dane nie są częścią artefaktu —
 /// BTB-CG renderuje je własnym rendererem, a odtwarzacz tylko animuje warstwy `[data-layer]`.
 pub fn artifact(el: &Element) -> Option<Value> {
-    if !motion_bridge::uses_keys(el) { return None; }
+    if !motion_bridge::uses_wasm(el) { return None; }
     let cfg = config(el, false).ok()?;
     Some(json!({
         "version": MOTION_VERSION,
+        "stops": el.animation.local_stops(),
         "director": cfg["director"],
         "tickers": cfg["tickers"],
         "squash": cfg["squash"],
@@ -144,6 +145,23 @@ mod tests {
             // tx: 0 -> 100 w 1 s (IN), dalej stała; krycie: 0 -> 1 w 0,5 s (IN), po Stop 1 -> 0 w 0,5 s (OUT)
             s.layers[0].keys = vec![ch("tx", vec![key(0.0, 0.0), key(1.0, 100.0)]), ch("opacity", vec![key(0.0, 0.0), key(0.5, 1.0), key(1.2, 1.0), key(1.7, 0.0)])];
             std::fs::write(dir.join("keys_pure.element.json"), serde_json::to_string(&[&el]).unwrap()).unwrap();
+        }
+        // Local Stop (M2.6): tx 0 -> 90 w 3 s, pośrednie Stopy w 1 s i 2 s, ostatni Stop w 3 s; po nim OUT = krycie 1 -> 0 w 0,5 s
+        {
+            let mut el = Element::new_typed("stops_pure", "BADGE");
+            el.animation.anim_in = AnimSpec { anim_type: "none".into(), ..Default::default() };
+            el.animation.out = AnimSpec { anim_type: "none".into(), ..Default::default() };
+            el.animation.loop_spec = None;
+            el.animation.text = None;
+            el.animation.text_out = None;
+            el.animation.extra.insert("stopAt".into(), serde_json::Value::from(3.0));
+            el.animation.set_local_stops(vec![1.0, 2.0]);
+            let s = el.scene.as_mut().unwrap();
+            for l in s.layers.iter_mut() { l.motion = Motion::default(); }
+            let key = |t: f32, v: f32| btb_motion::Key::linear(t, v);
+            let ch = |prop: &str, keys: Vec<btb_motion::Key>| { let mut c = btb_motion::Channel::new(prop); c.keys = keys; c };
+            s.layers[0].keys = vec![ch("tx", vec![key(0.0, 0.0), key(3.0, 90.0)]), ch("opacity", vec![key(0.0, 1.0), key(3.0, 1.0), key(3.5, 0.0)])];
+            std::fs::write(dir.join("stops_pure.stops.json"), serde_json::to_string(&[&el]).unwrap()).unwrap();
         }
         // ścieżka ruchu: dwa klucze = prosta o stałej prędkości (0,0) -> (100,60) w 1 s, potem stoi
         {

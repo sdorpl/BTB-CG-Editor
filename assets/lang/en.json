@@ -518,5 +518,9 @@
   "fit.mode.size": "Stretch",
   "fit.mode.size.hover": "The layer width grows with the text (e.g. a bar background).",
   "fit.mode.follow": "Follow",
-  "fit.mode.follow.hover": "The layer moves with the right edge of the text (e.g. an icon or dot)."
+  "fit.mode.follow.hover": "The layer moves with the right edge of the text (e.g. an icon or dot).",
+  "timeline.local_stops": "Local Stops:",
+  "timeline.local_stops.hover": "Intermediate stops of the IN phase (timeline seconds). On air the Continue command resumes them; the final Stop (above) is the hold before OUT.",
+  "timeline.local_stop.add": "+ Local Stop",
+  "timeline.local_stop.add.hover": "Add an intermediate stop of the IN phase"
 }

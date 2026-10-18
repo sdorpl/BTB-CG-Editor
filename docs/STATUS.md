@@ -13,6 +13,7 @@ grafiki z dysku, paczka elementu `.cgpack`.
 
 ## Zrobione ostatnio
 
+- M2.6 (plan M2 w BTB-CG): Local Stop — `animation.stops`, zdarzenia `stop<N>` w Directorze, `btb.continue()` w playerze, lista Local Stopów i znaczniki na osi czasu, `tools/e2e-motion.js` (`runStops`). Zostaje: zatrzymania w podglądzie egui.
 - M2.0 (plan M2 w BTB-CG: `docs/plans/M2-runtime-wasm.md`): auto-szerokość tekstu — `autoW`/`minW`/`maxW`/`fitText` w modelu, `compile.rs` (parytet z `SceneModel`), podgląd egui (`render::fit_adjust`), strona WASM (`P.fit`), inspektor, `tools/e2e-fit.js`. Zostaje: konwerter i migracja oprawy (krok 5–6 planu).
 - G1/1: usunięto `unwrap()` na ścieżkach z danych zewnętrznych (render, app, timeline, keyconv, canvas/tools, motion_page, motion_bridge, compile, btb-motion/channel); zostały CLI w `main.rs`, `presets.rs`, `i18n.rs` (patrz LUKI.md).
 - Dokumentacja aplikacji i instrukcja dla początkujących.

@@ -97,6 +97,10 @@ Stan faz: 0–6 zrobione (rdzeń, most, odtwarzacz, WASM, strona wyjściowa, zgo
 
 Strona `--write-motion-html` i `output.html` w BTB-CG mają `.cg-i > .cg-t { width: 100% }` **bez `height: 100%`**: z wysokością 100% tekst przyklejał się do góry pudełka (do kilkunastu px przesunięcia względem podglądów), bo wyśrodkowanie robi `align-items` warstwy. `preview.rs` (podgląd HTML edytora) ma własną poprawkę `line-height: <h>px` + 0,073 em dla Bahnschrift (`compile::text_centering_css`) i dlatego zostawia `height: 100%`. Test: `test-output-text-pos.js` (BTB-CG).
 
+## Local Stop (M2.6)
+
+`animation.stops` = pośrednie Stopy wejścia (`ElementAnimation::local_stops`: posortowane, skończone, > 0, ≤ 32); `motion_bridge::build` dodaje im zdarzenia `EventKind::Stop` o nazwach `stop1`… (ostatni Stop to `hold`; **nie używamy `EventKind::LocalStop`**, które ma TODO per-Director). `playback::plan` rozszerza `in_total` o ostatni Local Stop; `uses_wasm` = klucze/ścieżka **lub** Local Stopy (warunek artefaktu `motion`). Player: `btb.continue()` (z `hold` → OUT), `off()` na pośrednim Stopie ustawia `pendingOff` i przejeżdża Stopy. Podgląd egui nie zatrzymuje się na Local Stopach (tylko znaczniki na osi). Test: `tools/e2e-motion.js` (`runStops`, element `stops_pure.stops.json`), `motion_bridge::tests::local_stops_become_stop_events`.
+
 ## Artefakt `motion` (M2.1)
 
 `compile::apply_to_element` woła `refresh_motion`: element z kluczami/ścieżką dostaje w `extra["motion"]` wynik `motion_page::artifact` (`{ version, director, tickers, squash, fit }`), inne go tracą. To dane dla runtime'u WASM w BTB-CG (plan M2: `docs/plans/M2-runtime-wasm.md`). Zmiana kształtu = podniesienie `MOTION_VERSION` i zmiana walidacji w `editor-io.js` BTB-CG.

@@ -518,5 +518,9 @@
   "fit.mode.size": "Rozciągaj",
   "fit.mode.size.hover": "Szerokość warstwy rośnie razem z tekstem (np. tło belki).",
   "fit.mode.follow": "Przesuwaj",
-  "fit.mode.follow.hover": "Warstwa przesuwa się za prawym brzegiem tekstu (np. ikona, kropka)."
+  "fit.mode.follow.hover": "Warstwa przesuwa się za prawym brzegiem tekstu (np. ikona, kropka).",
+  "timeline.local_stops": "Local Stopy:",
+  "timeline.local_stops.hover": "Pośrednie zatrzymania wejścia (czas osi). Na wizji wznawia je polecenie „Dalej” (Continue); ostatni Stop (powyżej) to zatrzymanie przed wyjściem.",
+  "timeline.local_stop.add": "+ Local Stop",
+  "timeline.local_stop.add.hover": "Dodaj pośrednie zatrzymanie wejścia"
 }

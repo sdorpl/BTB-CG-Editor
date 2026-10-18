@@ -138,6 +138,16 @@ W pasku menu: **▶ IN**, **▶ OUT**, **⟳ Cykl** (IN → trzymaj → OUT), **
 `playback::evaluate`, a gdy element ma klucze lub ścieżkę – silnika `btb-motion`. Podgląd rysuje efekty tekstu
 i maski przybliżeniem; dokładny wygląd daje strona wyjściowa.
 
+### 5.6a Local Stop (wiele punktów zatrzymania)
+
+Pasek nad osią czasu ma pole **Stop** (ostatnie zatrzymanie przed wyjściem) i listę **Local Stopów** — pośrednich zatrzymań wejścia
+(`+ Local Stop`, wartość w sekundach, `×` usuwa; zielone linie na osi). Zapis: `animation.stops` (tablica czasów, do 32). Na stronie
+wyjściowej i w BTB-CG (runtime WASM): TAKE gra wejście do pierwszego Stopu i czeka; **Continue** (`btb.continue()`, w BTB-CG polecenie „Dalej”)
+przechodzi do następnego, z ostatniego Stopu (`hold`) zaczyna się wyjście. **OFF** na pośrednim Stopie dogrywa resztę wejścia bez zatrzymań
+i wychodzi. Zdarzenia odtwarzacza: `hold` (z `name`: `stop1`… albo `hold`), `continue`, `end`. Podgląd w edytorze (`▶ IN`) nie zatrzymuje się na
+Local Stopach — widać je tylko jako znaczniki; zatrzymania sprawdzisz na stronie wyjściowej. Element z Local Stopami ma artefakt `motion`
+(`stops`: lista czasów) i gra silnikiem WASM.
+
 ### 5.7 Auto-szerokość tekstu
 
 Warstwa tekstowa z opcją **Auto-szerokość** (*Zaawansowane*) ma szerokość równą szerokości tekstu; pole `w` to szerokość

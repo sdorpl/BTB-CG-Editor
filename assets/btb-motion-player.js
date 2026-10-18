@@ -1,6 +1,6 @@
 /* btb-motion-player: odtwarza animację elementu BTB-CG silnikiem btb-motion (WASM) bez biblioteki animacji.
  * Konfiguracja: window.BTB_CONFIG = { wasm (base64), director, html, css, data, frame, manual }.
- * API: btb.take() / btb.off() / btb.reset() / btb.update(fields) / btb.tick(dt) (tryb manual).
+ * API: btb.take() / btb.off() / btb.continue() (Local Stop) / btb.reset() / btb.update(fields) / btb.tick(dt) (tryb manual).
  * Sterowanie: ?auto=1 (TAKE po załadowaniu), ?obs=1 (źródło aktywne = TAKE, nieaktywne = reset),
  * ?ws=ws://host:port (JSON {cmd:"take"|"off"|"reset"|"update", fields}), postMessage z tym samym JSON.
  *
@@ -331,7 +331,11 @@
     this.wall += dt;
     var ev = this.out(), self = this;
     ev.forEach(function (e) {
-      if (e.kind === 'stopped') { self.holding = true; self.emit('hold', e); if (self.pendingOff) { self.pendingOff = false; self.holding = false; self.beforeOut(); w.resume(); } }
+      if (e.kind === 'stopped') {
+        self.holding = true; self.holdName = e.name; self.emit('hold', e);
+        // OFF zgłoszony w trakcie wejścia: pośrednie Stopy są przejeżdżane bez czekania, na ostatnim (hold) zaczyna się OUT
+        if (self.pendingOff) { self.holding = false; if (e.name === 'hold') { self.pendingOff = false; self.beforeOut(); } w.resume(); }
+      }
       else if (e.kind === 'tag') self.emit('tag', e);
       else if (e.kind === 'end') { self.emit('end', e); self.hide(); }
     });
@@ -342,14 +346,30 @@
 
   P.take = function () {
     this.render();
-    this.w.start(); this.holding = false; this.pendingOff = false; this.wall = 0;
+    this.w.start(); this.holding = false; this.holdName = null; this.pendingOff = false; this.wall = 0;
     this.visible = true; if (!this.embedded) this.root.style.visibility = 'visible';
     this.frame(); this.emit('take', {});
     this.startLoop();
   };
+  // Local Stop (M2.6): pośrednie Stopy to zdarzenia "stop1"… (czekają na continue), ostatni to "hold" (po nim OUT).
+  P.isFinalHold = function () { return !this.holdName || this.holdName === 'hold'; };
+  // Continue: wznawia z bieżącego Stopu — do następnego Stopu, a z ostatniego (hold) do wyjścia
+  P['continue'] = function () {
+    if (!this.visible || !this.holding) return false;
+    var fin = this.isFinalHold();
+    this.holding = false; if (fin) this.beforeOut();
+    this.w.resume(); this.emit('continue', { name: this.holdName });
+    return true;
+  };
+  // OFF: na ostatnim Stopie — wyjście; na pośrednim — dogrywa resztę wejścia bez zatrzymań i wychodzi; w trakcie wejścia — to samo po dojściu do hold
   P.off = function () {
     if (!this.visible) return;
-    if (this.holding) { this.holding = false; this.beforeOut(); this.w.resume(); } else if (this.w.playing()) this.pendingOff = true;
+    if (this.holding) {
+      var fin = this.isFinalHold();
+      this.holding = false;
+      if (fin) this.beforeOut(); else this.pendingOff = true;
+      this.w.resume();
+    } else if (this.w.playing()) this.pendingOff = true;
     this.emit('off', {});
   };
   P.hide = function () { this.visible = false; this.holding = false; if (!this.embedded) this.root.style.visibility = 'hidden'; this.stopLoop(); };
@@ -377,7 +397,7 @@
   function command(p, msg) {
     if (!msg || !msg.cmd) return;
     if (msg.fields) p.update(msg.fields);
-    if (msg.cmd === 'take') p.take(); else if (msg.cmd === 'off') p.off(); else if (msg.cmd === 'reset') p.reset();
+    if (msg.cmd === 'take') p.take(); else if (msg.cmd === 'off') p.off(); else if (msg.cmd === 'continue') p['continue'](); else if (msg.cmd === 'reset') p.reset();
     else if (msg.cmd === 'update') p.update(msg.fields);
   }
 

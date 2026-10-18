@@ -135,6 +135,8 @@ pub fn plan(el: &Element, scene: &Scene, values: &Values) -> Plan {
     }
     // pozycja Stop ustawiona ręcznie na osi czasu (klucze użytkownika mogą wymagać dłuższego wejścia)
     if let Some(stop) = a.extra.get("stopAt").and_then(|v| v.as_f64()) { in_total = in_total.max(stop as f32); }
+    // Local Stop (M2.6): pośrednie zatrzymania leżą w oknie wejścia, które musi je obejmować
+    if let Some(last) = a.local_stops().last() { in_total = in_total.max(*last + 0.05); }
     // klucze po Stop należą do wyjścia: oś kończy się na ostatnim z nich
     let key_end = scene.layers.iter().filter(|l| l.visible).flat_map(|l| l.keys.iter().filter_map(|c| c.keys.last().map(|k| k.t)).chain(l.path.iter().filter_map(|p| p.keys.last().map(|k| k.t)))).chain(scene.keys.iter().filter_map(|c| c.keys.last().map(|k| k.t))).fold(0.0f32, f32::max);
     let elem_out = Timing::from(&a.out);

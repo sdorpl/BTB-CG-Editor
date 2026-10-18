@@ -131,6 +131,10 @@ pub fn build(el: &Element, scene: &Scene, plan: &Plan) -> Director {
     let t_in = plan.in_total;
     let mut d = Director::new("Default", t_in + plan.out_total);
     d.events.push(Event { name: "hold".into(), t: t_in, kind: EventKind::Stop, dir: Dir::Forward });
+    // Local Stop (M2.6): pośrednie zatrzymania wejścia ("stop1", "stop2"…); wznawia je polecenie Continue, ostatni Stop to "hold"
+    for (i, t) in a.local_stops().into_iter().filter(|t| *t < t_in - 1e-3).enumerate() {
+        d.events.push(Event { name: format!("stop{}", i + 1), t, kind: EventKind::Stop, dir: Dir::Forward });
+    }
 
     if active(&a.anim_in.anim_type) {
         let tm = Timing::from(&a.anim_in);
@@ -281,6 +285,11 @@ pub fn evaluate(pb: &Playback, el: &Element, scene: &Scene, values: &Values, pla
 /// Czy element ma klucze użytkownika (wtedy podgląd musi używać silnika, bo `playback::evaluate` ich nie zna).
 pub fn uses_keys(el: &Element) -> bool {
     el.scene.as_ref().is_some_and(|s| s.keys.iter().any(|c| !c.keys.is_empty()) || s.layers.iter().any(|l| l.visible && (l.keys.iter().any(|c| !c.keys.is_empty()) || l.path.as_ref().is_some_and(|p| !p.keys.is_empty()))))
+}
+
+/// Czy element wymaga runtime'u WASM na antenie: klucze/ścieżka albo Local Stop (CGMotion ich nie zna).
+pub fn uses_wasm(el: &Element) -> bool {
+    uses_keys(el) || !el.animation.local_stops().is_empty()
 }
 
 /// Czy aplikacja ma używać silnika `btb-motion` (`BTB_ENGINE=motion`).
@@ -579,6 +588,32 @@ mod tests {
         let back: Layer = serde_json::from_value(serde_json::to_value(&scene.layers[0]).unwrap()).unwrap();
         assert_eq!(back.path.unwrap().keys.len(), 2);
         assert!(serde_json::to_value(Layer::new(LayerType::Shape)).unwrap().get("path").is_none());
+    }
+
+    #[test]
+    fn local_stops_become_stop_events() {
+        let (mut el, _) = keyed_element();
+        el.animation.extra.insert("stopAt".into(), serde_json::Value::from(3.0));
+        // brudne dane: NaN, ujemne, powtórki, nie po kolei, zbyt wiele
+        el.animation.extra.insert("stops".into(), serde_json::json!([2.0, 1.0, 1.0004, -1.0, 0.0, "x", null]));
+        assert_eq!(el.animation.local_stops(), vec![1.0, 2.0]);
+        let scene = el.scene.clone().unwrap();
+        let base = String::new();
+        let plan = playback::plan(&el, &scene, &values_for(&el, &base));
+        let d = build(&el, &scene, &plan);
+        let stops: Vec<(String, f32)> = d.events.iter().filter(|e| e.kind == EventKind::Stop).map(|e| (e.name.clone(), e.t)).collect();
+        assert_eq!(stops, vec![("hold".to_string(), 3.0), ("stop1".to_string(), 1.0), ("stop2".to_string(), 2.0)]);
+        assert!(uses_wasm(&el));
+        // Stop poza oknem wejścia jest pomijany; brak stopów = brak artefaktu (element bez kluczy)
+        el.animation.set_local_stops(vec![5.0]);
+        let plan2 = playback::plan(&el, &scene, &values_for(&el, &base));
+        assert!(plan2.in_total >= 5.05 - 1e-3, "plan obejmuje ostatni Local Stop");
+        el.animation.set_local_stops(vec![]);
+        assert!(!el.animation.extra.contains_key("stops"));
+        let mut over = vec![];
+        for i in 0..100 { over.push(i as f32 + 1.0); }
+        el.animation.extra.insert("stops".into(), serde_json::json!(over));
+        assert_eq!(el.animation.local_stops().len(), 32, "limit liczby Local Stop");
     }
 
     #[test]

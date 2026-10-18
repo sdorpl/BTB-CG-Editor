@@ -413,6 +413,11 @@ pub fn draw_timeline(ui: &mut Ui, el: &mut Element, plan: &Plan, pb: &mut Playba
             p.vline(sx(h), rect.min.y..=rect.max.y, Stroke::new(1.5, Color32::from_rgb(251, 191, 36)));
         }
 
+        // znaczniki Local Stop
+        for s in el.animation.local_stops() {
+            p.vline(sx(s), rect.min.y..=rect.max.y, Stroke::new(1.0, Color32::from_rgb(74, 222, 128)));
+        }
+
         // scrub po tle (przeciąganie klucza ma pierwszeństwo)
         if tl.drag.is_none() && drag_update.is_none() {
             if let Some(pos) = resp.interact_pointer_pos() {
@@ -561,6 +566,21 @@ fn detail_strip(ui: &mut Ui, el: &mut Element, plan: &Plan, tl: &mut TimelineUi)
             tl.sel.clear();
         }
         if let Some(m) = &tl.message { ui.weak(m.clone()); }
+        // Local Stop (M2.6): pośrednie zatrzymania wejścia; na antenie wznawia je polecenie Continue
+        let mut stops = el.animation.local_stops();
+        let before_stops = stops.clone();
+        ui.label(tr("timeline.local_stops")).on_hover_text(tr("timeline.local_stops.hover"));
+        let mut del = None;
+        for (i, s) in stops.iter_mut().enumerate() {
+            ui.add(egui::DragValue::new(s).speed(0.02).range(0.05..=plan.in_total.max(0.1)).suffix(" s"));
+            if ui.small_button("×").clicked() { del = Some(i); }
+        }
+        if let Some(i) = del { stops.remove(i); }
+        if ui.small_button(tr("timeline.local_stop.add")).on_hover_text(tr("timeline.local_stop.add.hover")).clicked() && stops.len() < 32 {
+            let last = stops.last().copied().unwrap_or(0.0);
+            stops.push(last + (plan.in_total - last).max(0.2) / 2.0);
+        }
+        if stops != before_stops { el.animation.set_local_stops(stops); }
         ui.checkbox(&mut tl.graph_open, tr("timeline.graph")).on_hover_text(tr("timeline.graph.hover"));
         ui.separator();
         let Some(r) = (tl.sel.len() == 1).then(|| tl.sel[0].clone()) else {
