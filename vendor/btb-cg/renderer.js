@@ -16,7 +16,6 @@
             margin: 0;
             padding: 0;
         }
-        .lt-root p + p { margin-top: 0.4em; }
     `;
     document.head.appendChild(style);
 
@@ -51,7 +50,42 @@
             el.style.marginRight = (-(1 - s) * el.offsetWidth) + 'px';
         });
     }
-    window.CGTextSquash = { fitManual: fitManualSquash };
+    // Interlinia wielowierszowego tytułu: wiersz (blok <div>/<p>) składający się wyłącznie z tekstu w <span style="font-size:…">
+    // ma strut o rozmiarze fontu BLOKU (np. 48 px), więc mniejsza linia (26 px) dostaje 58-pikselowy wiersz i „ogromny margines” nad/pod
+    // sobą. Przenosimy rozmiar na blok (tylko wartości bezwzględne i jeden rozmiar w bloku) — wiersz liczy się wtedy z własnego fontu.
+    // Zmiana tylko stylu elementu `root` (bloki bezpośrednie); `data-cg-hoist` oznacza style nałożone przez nas (można je cofnąć).
+    const HOIST_ABS = /^(\d+(\.\d+)?(px|pt)|xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large)$/i;
+    function hoistBlockFonts(root) {
+        if (!root) return 0;
+        const blocks = [...root.children].filter(n => n.tagName === 'DIV' || n.tagName === 'P');
+        let n = 0;
+        blocks.forEach(b => {
+            const ours = b.hasAttribute('data-cg-hoist');
+            if (b.style.fontSize && !ours) return;                    // rozmiar ustawiony świadomie na bloku
+            let size = null, ok = true, any = false;
+            const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+            while (ok && w.nextNode()) {
+                const tn = w.currentNode;
+                if (!tn.nodeValue.trim()) continue;
+                any = true;
+                let el = tn.parentElement, fs = null;
+                while (el && el !== b) { if (el.style && el.style.fontSize) { fs = el.style.fontSize; break; } el = el.parentElement; }
+                if (!fs || !HOIST_ABS.test(fs) || (size !== null && size !== fs)) ok = false; else size = fs;
+            }
+            if (any && ok && size) { b.style.fontSize = size; b.setAttribute('data-cg-hoist', '1'); n++; }
+            else if (ours) { b.style.fontSize = ''; b.removeAttribute('data-cg-hoist'); }
+        });
+        return n;
+    }
+    /** Wersja dla tekstu HTML (renderer): tylko gdy są co najmniej 2 bloki (jednoliniowe tytuły bez zmian). */
+    function hoistBlockFontsHtml(html) {
+        if (typeof html !== 'string' || !/<(div|p)\b/i.test(html)) return html;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        if ([...tmp.children].filter(n => n.tagName === 'DIV' || n.tagName === 'P').length < 2) return html;
+        return hoistBlockFonts(tmp) ? tmp.innerHTML : html;
+    }
+    window.CGTextSquash = { fitManual: fitManualSquash, hoistBlockFonts, hoistBlockFontsHtml };
 
     function applyGlobalSquashing(root) {
         if (!root) return;
@@ -1436,6 +1470,7 @@
 
         // TITLE_L1, TITLE_L2… — kolejne linie (bloki <div>/<p>, <br> lub \n) tytułu; używają ich warstwy tekstowe sceny z `line`
         const applyTitleLines = (ctx) => {
+            if (typeof ctx.TITLE === 'string') ctx.TITLE = hoistBlockFontsHtml(ctx.TITLE);
             const titleLineVars = {};
             const t = String(ctx.TITLE || '');
             let parts = [];

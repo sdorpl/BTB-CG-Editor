@@ -80,7 +80,6 @@ html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 13px 
 #render-container { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; overflow: hidden; pointer-events: none; }
 .cg-i > .cg-t { width: 100%; height: 100%; overflow: hidden; }
 .cg-t p, .cg-t h1, .cg-t h2, .cg-t h3, .cg-t h4, .cg-t ul, .cg-t ol, .cg-t li, .cg-t blockquote { margin: 0; padding: 0; }
-.cg-t p + p { margin-top: 0.4em; }
 @@FIXES@@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
